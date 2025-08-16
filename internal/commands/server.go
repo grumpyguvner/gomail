@@ -86,11 +86,15 @@ func NewServerCommand() *cobra.Command {
 			// Wait for shutdown
 			<-ctx.Done()
 
-			// Graceful shutdown with timeout
-			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+			// Graceful shutdown with 30-second timeout
+			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 30*time.Second)
 			defer shutdownCancel()
 
+			logging.Get().Info("Gracefully shutting down server (timeout: 30s)...")
 			if err := server.Shutdown(shutdownCtx); err != nil {
+				if err == context.DeadlineExceeded {
+					logging.Get().Error("Graceful shutdown timed out after 30 seconds, forcing shutdown")
+				}
 				return fmt.Errorf("shutdown error: %w", err)
 			}
 

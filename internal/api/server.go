@@ -22,19 +22,22 @@ import (
 )
 
 type Server struct {
-	config     *config.Config
-	httpServer *http.Server
-	listener   net.Listener
-	storage    *storage.FileStorage
-	metrics    *Metrics
-	validator  *validation.EmailValidator
+	config          *config.Config
+	httpServer      *http.Server
+	listener        net.Listener
+	storage         *storage.FileStorage
+	metrics         *Metrics
+	validator       *validation.EmailValidator
+	activeRequests  atomic.Int64
+	shutdownStarted atomic.Bool
 }
 
 type Metrics struct {
-	TotalEmails  atomic.Int64
-	TotalBytes   atomic.Int64
-	LastReceived atomic.Value // time.Time
-	StartTime    time.Time
+	TotalEmails     atomic.Int64
+	TotalBytes      atomic.Int64
+	LastReceived    atomic.Value // time.Time
+	StartTime       time.Time
+	ActiveRequests  *atomic.Int64 // Pointer to server's activeRequests
 }
 
 func NewServer(cfg *config.Config) (*Server, error) {
@@ -48,9 +51,11 @@ func NewServer(cfg *config.Config) (*Server, error) {
 		config:    cfg,
 		storage:   store,
 		validator: validation.NewEmailValidator(),
-		metrics: &Metrics{
-			StartTime: time.Now(),
-		},
+	}
+	
+	s.metrics = &Metrics{
+		StartTime:      time.Now(),
+		ActiveRequests: &s.activeRequests,
 	}
 
 	// Setup HTTP server
@@ -114,12 +119,59 @@ func (s *Server) Start(ctx context.Context) error {
 }
 
 func (s *Server) Shutdown(ctx context.Context) error {
-	return s.httpServer.Shutdown(ctx)
+	s.shutdownStarted.Store(true)
+	
+	// Log current state
+	activeReqs := s.activeRequests.Load()
+	if activeReqs > 0 {
+		logging.Get().Infof("Waiting for %d active requests to complete...", activeReqs)
+	}
+	
+	// Monitor shutdown progress
+	done := make(chan struct{})
+	go func() {
+		ticker := time.NewTicker(5 * time.Second)
+		defer ticker.Stop()
+		
+		for {
+			select {
+			case <-ticker.C:
+				if reqs := s.activeRequests.Load(); reqs > 0 {
+					logging.Get().Infof("Still waiting for %d active requests...", reqs)
+				}
+			case <-done:
+				return
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+	
+	// Perform shutdown
+	err := s.httpServer.Shutdown(ctx)
+	close(done)
+	
+	if err != nil {
+		if err == context.DeadlineExceeded {
+			forcedClose := s.activeRequests.Load()
+			if forcedClose > 0 {
+				logging.Get().Warnf("Forced shutdown with %d active requests", forcedClose)
+			}
+		}
+		return err
+	}
+	
+	logging.Get().Info("All connections drained successfully")
+	return nil
 }
 
 func (s *Server) applyMiddleware(handler http.Handler) http.Handler {
 	// Apply middlewares in reverse order (innermost first)
-	// Request flow: RateLimit -> RequestID -> Recovery -> handler
+	// Request flow: ActiveRequest -> RateLimit -> RequestID -> Recovery -> handler
+	
+	// Track active requests for graceful shutdown
+	handler = s.activeRequestsMiddleware(handler)
+	
 	handler = middleware.RecoveryMiddleware(handler)
 	handler = middleware.RequestIDMiddleware(handler)
 
@@ -137,6 +189,21 @@ func (s *Server) applyMiddleware(handler http.Handler) http.Handler {
 	handler = rateLimiter.Middleware(handler)
 
 	return handler
+}
+
+func (s *Server) activeRequestsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Reject new requests if shutdown has started
+		if s.shutdownStarted.Load() {
+			http.Error(w, "Server is shutting down", http.StatusServiceUnavailable)
+			return
+		}
+		
+		s.activeRequests.Add(1)
+		defer s.activeRequests.Add(-1)
+		
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
@@ -276,11 +343,13 @@ func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := map[string]interface{}{
-		"total_emails":   s.metrics.TotalEmails.Load(),
-		"total_bytes":    s.metrics.TotalBytes.Load(),
-		"last_received":  lastReceived,
-		"uptime_seconds": time.Since(s.metrics.StartTime).Seconds(),
-		"start_time":     s.metrics.StartTime.Format(time.RFC3339),
+		"total_emails":     s.metrics.TotalEmails.Load(),
+		"total_bytes":      s.metrics.TotalBytes.Load(),
+		"last_received":    lastReceived,
+		"uptime_seconds":   time.Since(s.metrics.StartTime).Seconds(),
+		"start_time":       s.metrics.StartTime.Format(time.RFC3339),
+		"active_requests":  s.activeRequests.Load(),
+		"shutting_down":    s.shutdownStarted.Load(),
 	}
 
 	w.Header().Set("Content-Type", "application/json")

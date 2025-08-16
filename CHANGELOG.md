@@ -33,6 +33,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🚧 Sprint 2: Core Functionality Hardening (2025-08-16 to 2025-08-26)
 
+#### Progress
+- **Test Coverage:** 48.2% (Target: 50%)
+- **Completed:** 3/6 features (50%)
+
 #### In Progress
 - [x] Rate limiting middleware (60 req/min default)
   - Token bucket algorithm implementation
@@ -44,8 +48,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Comprehensive field validation (ports, domains, paths, tokens)
   - New `validate` command to check configuration
   - Clear error messages for invalid configs
-  - 89.5% test coverage for config package
-- [ ] Graceful shutdown with 30s timeout
+  - 89.3% test coverage for config package
+- [x] Graceful shutdown with 30s timeout
+  - Active request tracking and monitoring
+  - Reject new requests during shutdown
+  - Log progress every 5 seconds
+  - Force shutdown after timeout
+  - Comprehensive test coverage
 - [ ] Prometheus metrics integration
 - [ ] Error type categorization
 - [ ] Connection pooling
