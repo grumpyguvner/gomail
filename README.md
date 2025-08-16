@@ -17,7 +17,21 @@ A high-performance mail server solution that combines Postfix SMTP with HTTP API
 
 ## Quick Start
 
-### Installation
+### One-Line Installation
+
+```bash
+# Install everything with one command (replace example.com with your domain)
+curl -sSL https://github.com/grumpyguvner/gomail/releases/latest/download/quickinstall.sh | sudo bash -s example.com
+```
+
+That's it! GoMail is now installed and running. The installer:
+- ✅ Downloads the correct binary for your system
+- ✅ Generates secure configuration automatically
+- ✅ Installs and configures Postfix
+- ✅ Sets up your domain
+- ✅ Starts the service
+
+### Manual Installation
 
 ```bash
 # Download the latest release
@@ -25,30 +39,8 @@ wget https://github.com/grumpyguvner/gomail/releases/latest/download/gomail-linu
 chmod +x gomail-linux-amd64
 sudo mv gomail-linux-amd64 /usr/local/bin/gomail
 
-# Or build from source
-git clone https://github.com/grumpyguvner/gomail.git
-cd gomail
-make build
-sudo make install
-```
-
-### Basic Setup
-
-```bash
-# Generate configuration
-gomail config generate
-
-# Edit configuration
-vim mailserver.yaml
-
-# Install and configure everything
-sudo gomail install
-
-# Add your domain
-sudo gomail domain add example.com
-
-# Start the server
-sudo systemctl start gomail
+# Run automatic setup (will prompt for domain)
+sudo gomail quickstart
 ```
 
 ## Architecture

@@ -65,8 +65,13 @@ jobs:
         WantedBy=multi-user.target
         EOF
     
-    - name: Create installation script
+    - name: Create installation scripts
       run: |
+        # Copy quickinstall script
+        cp scripts/quickinstall.sh quickinstall.sh
+        chmod +x quickinstall.sh
+        
+        # Create simple install script
         cat > install.sh << 'EOF'
         #!/bin/bash
         set -e
@@ -89,25 +94,8 @@ jobs:
         chmod +x "${BINARY}"
         sudo mv "${BINARY}" /usr/local/bin/gomail
         
-        # Create service user
-        if ! id -u gomail >/dev/null 2>&1; then
-          sudo useradd -r -s /sbin/nologin -d /opt/gomail gomail
-        fi
-        
-        # Create directories
-        sudo mkdir -p /opt/gomail/data
-        sudo chown -R gomail:gomail /opt/gomail
-        
-        # Install systemd service
-        wget -q "https://github.com/grumpyguvner/gomail/releases/latest/download/gomail.service"
-        sudo mv gomail.service /etc/systemd/system/
-        sudo systemctl daemon-reload
-        
         echo "GoMail installed successfully!"
-        echo "Next steps:"
-        echo "  1. Create config: gomail config generate"
-        echo "  2. Run installation: sudo gomail install"
-        echo "  3. Start service: sudo systemctl start gomail"
+        echo "Run 'sudo gomail quickstart' to complete setup"
         EOF
         chmod +x install.sh
     
@@ -122,16 +110,24 @@ jobs:
           
           ### Installation
           
-          #### Quick Install (Linux/macOS)
+          #### One-Line Install (Recommended)
           ```bash
+          # Replace example.com with your domain
+          curl -sSL https://github.com/grumpyguvner/gomail/releases/latest/download/quickinstall.sh | sudo bash -s example.com
+          ```
+          
+          #### Alternative Install
+          ```bash
+          # Download and run interactive setup
           curl -sSL https://github.com/grumpyguvner/gomail/releases/latest/download/install.sh | bash
+          sudo gomail quickstart
           ```
           
           #### Manual Installation
           1. Download the appropriate binary for your platform
           2. Make it executable: `chmod +x gomail-*`
           3. Move to PATH: `sudo mv gomail-* /usr/local/bin/gomail`
-          4. Run setup: `sudo gomail install`
+          4. Run setup: `sudo gomail quickstart`
           
           ### Features
           - Single binary mail server solution
@@ -151,4 +147,5 @@ jobs:
           checksums.txt
           gomail.service
           install.sh
+          quickinstall.sh
           example.mailserver.yaml
