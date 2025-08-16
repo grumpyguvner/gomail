@@ -136,9 +136,7 @@ func (m *DomainManager) ListDomains() ([]string, error) {
 		if strings.HasPrefix(line, "virtual_mailbox_domains = ") {
 			domainsStr := strings.TrimPrefix(line, "virtual_mailbox_domains = ")
 			if domainsStr != "" && domainsStr != "localhost" {
-				for _, domain := range strings.Fields(domainsStr) {
-					domains = append(domains, domain)
-				}
+				domains = append(domains, strings.Fields(domainsStr)...)
 			}
 		}
 	}
