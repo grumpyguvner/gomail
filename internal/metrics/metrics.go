@@ -111,6 +111,32 @@ var (
 		},
 		[]string{"type", "handler"}, // type: error category, handler: endpoint or component
 	)
+
+	// Timeout Metrics
+	TimeoutsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "gomail_timeouts_total",
+			Help: "Total number of request timeouts",
+		},
+		[]string{"endpoint"},
+	)
+
+	// Connection Pool Metrics
+	ConnectionPoolSize = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "gomail_connection_pool_size",
+			Help: "Current size of connection pool",
+		},
+		[]string{"type"}, // type: active, idle, total
+	)
+
+	ConnectionPoolWaitTime = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "gomail_connection_pool_wait_seconds",
+			Help:    "Time spent waiting for a connection from the pool",
+			Buckets: prometheus.ExponentialBuckets(0.001, 2, 10), // 1ms to ~1s
+		},
+	)
 )
 
 // Init registers all metrics with the Prometheus registry
@@ -129,6 +155,9 @@ func Init() {
 		_ = prometheus.Register(ShutdownsInitiated)
 		_ = prometheus.Register(ShutdownDuration)
 		_ = prometheus.Register(ErrorsTotal)
+		_ = prometheus.Register(TimeoutsTotal)
+		_ = prometheus.Register(ConnectionPoolSize)
+		_ = prometheus.Register(ConnectionPoolWaitTime)
 
 		// Register Go runtime metrics
 		_ = prometheus.Register(collectors.NewGoCollector())
@@ -150,6 +179,9 @@ func Reset() {
 	prometheus.Unregister(ShutdownsInitiated)
 	prometheus.Unregister(ShutdownDuration)
 	prometheus.Unregister(ErrorsTotal)
+	prometheus.Unregister(TimeoutsTotal)
+	prometheus.Unregister(ConnectionPoolSize)
+	prometheus.Unregister(ConnectionPoolWaitTime)
 	prometheus.Unregister(collectors.NewGoCollector())
 	prometheus.Unregister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
 
@@ -253,11 +285,58 @@ func Reset() {
 		},
 		[]string{"type", "handler"},
 	)
+
+	TimeoutsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "gomail_timeouts_total",
+			Help: "Total number of request timeouts",
+		},
+		[]string{"endpoint"},
+	)
+
+	ConnectionPoolSize = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "gomail_connection_pool_size",
+			Help: "Current size of connection pool",
+		},
+		[]string{"type"},
+	)
+
+	ConnectionPoolWaitTime = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "gomail_connection_pool_wait_seconds",
+			Help:    "Time spent waiting for a connection from the pool",
+			Buckets: prometheus.ExponentialBuckets(0.001, 2, 10),
+		},
+	)
 }
 
 // RecordError increments the error counter for a specific error type and handler
 func RecordError(errorType string, handler string) {
 	if ErrorsTotal != nil {
 		ErrorsTotal.WithLabelValues(errorType, handler).Inc()
+	}
+}
+
+// IncrementTimeouts increments the timeout counter for a specific endpoint
+func IncrementTimeouts(endpoint string) {
+	if TimeoutsTotal != nil {
+		TimeoutsTotal.WithLabelValues(endpoint).Inc()
+	}
+}
+
+// UpdateConnectionPoolMetrics updates connection pool gauge metrics
+func UpdateConnectionPoolMetrics(active, idle, total float64) {
+	if ConnectionPoolSize != nil {
+		ConnectionPoolSize.WithLabelValues("active").Set(active)
+		ConnectionPoolSize.WithLabelValues("idle").Set(idle)
+		ConnectionPoolSize.WithLabelValues("total").Set(total)
+	}
+}
+
+// RecordConnectionPoolWait records time spent waiting for a connection
+func RecordConnectionPoolWait(seconds float64) {
+	if ConnectionPoolWaitTime != nil {
+		ConnectionPoolWaitTime.Observe(seconds)
 	}
 }

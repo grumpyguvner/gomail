@@ -63,6 +63,12 @@ func (c *Config) ValidateSchema() error {
 	// DNS configuration validation
 	v.validateDOAPIToken(c.DOAPIToken)
 
+	// Timeout validation
+	v.validateTimeouts(c.ReadTimeout, c.WriteTimeout, c.IdleTimeout, c.HandlerTimeout)
+
+	// Connection pool validation
+	v.validateConnectionPool(c.MaxConnections, c.MaxIdleConns)
+
 	// Postfix paths validation
 	v.validatePath("postfix_main_cf", c.PostfixMainCF, false)
 	v.validatePath("postfix_virtual_regex", c.PostfixVirtualRegex, false)
@@ -232,6 +238,51 @@ func (v *SchemaValidator) validateDOAPIToken(token string) {
 	}
 }
 
+func (v *SchemaValidator) validateTimeouts(readTimeout, writeTimeout, idleTimeout, handlerTimeout int) {
+	if readTimeout < 0 {
+		v.addError("read_timeout", "cannot be negative")
+	} else if readTimeout > 300 {
+		v.addError("read_timeout", "unreasonably high timeout (>300s)")
+	}
+
+	if writeTimeout < 0 {
+		v.addError("write_timeout", "cannot be negative")
+	} else if writeTimeout > 300 {
+		v.addError("write_timeout", "unreasonably high timeout (>300s)")
+	}
+
+	if idleTimeout < 0 {
+		v.addError("idle_timeout", "cannot be negative")
+	} else if idleTimeout > 600 {
+		v.addError("idle_timeout", "unreasonably high timeout (>600s)")
+	}
+
+	if handlerTimeout < 0 {
+		v.addError("handler_timeout", "cannot be negative")
+	} else if handlerTimeout > 300 {
+		v.addError("handler_timeout", "unreasonably high timeout (>300s)")
+	}
+
+	// Handler timeout should be less than read/write timeouts
+	if handlerTimeout > 0 && readTimeout > 0 && handlerTimeout >= readTimeout {
+		v.addError("handler_timeout", "should be less than read_timeout")
+	}
+}
+
+func (v *SchemaValidator) validateConnectionPool(maxConnections, maxIdleConns int) {
+	if maxConnections < 0 {
+		v.addError("max_connections", "cannot be negative")
+	} else if maxConnections > 10000 {
+		v.addError("max_connections", "unreasonably high (>10000)")
+	}
+
+	if maxIdleConns < 0 {
+		v.addError("max_idle_conns", "cannot be negative")
+	} else if maxIdleConns > maxConnections && maxConnections > 0 {
+		v.addError("max_idle_conns", "cannot exceed max_connections")
+	}
+}
+
 func (v *SchemaValidator) validatePath(field, path string, checkExists bool) {
 	if path == "" {
 		// Paths can be empty if feature is not used
@@ -348,6 +399,47 @@ func GetConfigSchema() string {
 				"type":        "string",
 				"default":     "/etc/postfix/domains.list",
 				"description": "Path to Postfix domains list",
+			},
+			"read_timeout": map[string]interface{}{
+				"type":        "integer",
+				"minimum":     0,
+				"maximum":     300,
+				"default":     30,
+				"description": "HTTP read timeout in seconds",
+			},
+			"write_timeout": map[string]interface{}{
+				"type":        "integer",
+				"minimum":     0,
+				"maximum":     300,
+				"default":     30,
+				"description": "HTTP write timeout in seconds",
+			},
+			"idle_timeout": map[string]interface{}{
+				"type":        "integer",
+				"minimum":     0,
+				"maximum":     600,
+				"default":     60,
+				"description": "HTTP idle timeout in seconds",
+			},
+			"handler_timeout": map[string]interface{}{
+				"type":        "integer",
+				"minimum":     0,
+				"maximum":     300,
+				"default":     25,
+				"description": "Request handler timeout in seconds",
+			},
+			"max_connections": map[string]interface{}{
+				"type":        "integer",
+				"minimum":     0,
+				"maximum":     10000,
+				"default":     100,
+				"description": "Maximum number of connections in pool",
+			},
+			"max_idle_conns": map[string]interface{}{
+				"type":        "integer",
+				"minimum":     0,
+				"default":     10,
+				"description": "Maximum idle connections in pool",
 			},
 		},
 		"required": []string{"port", "mode", "data_dir"},

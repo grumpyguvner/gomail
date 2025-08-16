@@ -74,9 +74,9 @@ func NewServer(cfg *config.Config) (*Server, error) {
 
 	s.httpServer = &http.Server{
 		Handler:        handler,
-		ReadTimeout:    30 * time.Second,
-		WriteTimeout:   30 * time.Second,
-		IdleTimeout:    60 * time.Second,
+		ReadTimeout:    time.Duration(cfg.ReadTimeout) * time.Second,
+		WriteTimeout:   time.Duration(cfg.WriteTimeout) * time.Second,
+		IdleTimeout:    time.Duration(cfg.IdleTimeout) * time.Second,
 		MaxHeaderBytes: 1 << 20, // 1MB
 	}
 
@@ -201,7 +201,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 func (s *Server) applyMiddleware(handler http.Handler) http.Handler {
 	// Apply middlewares in reverse order (innermost first)
-	// Request flow: Prometheus -> ActiveRequest -> RateLimit -> RequestID -> ErrorHandler -> Recovery -> handler
+	// Request flow: Prometheus -> Timeout -> ActiveRequest -> RateLimit -> RequestID -> ErrorHandler -> Recovery -> handler
 
 	// Track active requests for graceful shutdown
 	handler = s.activeRequestsMiddleware(handler)
@@ -222,6 +222,11 @@ func (s *Server) applyMiddleware(handler http.Handler) http.Handler {
 
 	rateLimiter := middleware.NewRateLimiter(rate, burst, 5*time.Minute, logging.Get().Desugar())
 	handler = rateLimiter.Middleware(handler)
+
+	// Add timeout middleware if configured
+	if s.config.HandlerTimeout > 0 {
+		handler = middleware.TimeoutMiddleware(time.Duration(s.config.HandlerTimeout) * time.Second)(handler)
+	}
 
 	// Add Prometheus metrics middleware as the outermost layer
 	handler = middleware.PrometheusMiddleware(handler)
@@ -263,6 +268,10 @@ func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func (s *Server) handleMailInbound(w http.ResponseWriter, r *http.Request) {
+	// Create context with handler timeout
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(s.config.HandlerTimeout)*time.Second)
+	defer cancel()
+	r = r.WithContext(ctx)
 	// Start timing for processing duration
 	start := time.Now()
 

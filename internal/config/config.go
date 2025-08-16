@@ -36,6 +36,16 @@ type Config struct {
 	// DNS configuration
 	DOAPIToken string `json:"do_api_token" mapstructure:"do_api_token"`
 
+	// Timeout configuration (in seconds)
+	ReadTimeout    int `json:"read_timeout" mapstructure:"read_timeout"`
+	WriteTimeout   int `json:"write_timeout" mapstructure:"write_timeout"`
+	IdleTimeout    int `json:"idle_timeout" mapstructure:"idle_timeout"`
+	HandlerTimeout int `json:"handler_timeout" mapstructure:"handler_timeout"`
+
+	// Connection pool configuration
+	MaxConnections int `json:"max_connections" mapstructure:"max_connections"`
+	MaxIdleConns   int `json:"max_idle_conns" mapstructure:"max_idle_conns"`
+
 	// Postfix paths
 	PostfixMainCF       string `json:"postfix_main_cf" mapstructure:"postfix_main_cf"`
 	PostfixVirtualRegex string `json:"postfix_virtual_regex" mapstructure:"postfix_virtual_regex"`
@@ -60,6 +70,12 @@ func Load() (*Config, error) {
 	viper.SetDefault("postfix_main_cf", "/etc/postfix/main.cf")
 	viper.SetDefault("postfix_virtual_regex", "/etc/postfix/virtual_mailbox_regex")
 	viper.SetDefault("postfix_domains_list", "/etc/postfix/domains.list")
+	viper.SetDefault("read_timeout", 30)
+	viper.SetDefault("write_timeout", 30)
+	viper.SetDefault("idle_timeout", 60)
+	viper.SetDefault("handler_timeout", 25)
+	viper.SetDefault("max_connections", 100)
+	viper.SetDefault("max_idle_conns", 10)
 
 	// Bind environment variables
 	viper.SetEnvPrefix("MAIL")

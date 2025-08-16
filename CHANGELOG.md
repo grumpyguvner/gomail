@@ -31,11 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [x] Implemented input validation and sanitization
 - [x] Added security scanning to CI pipeline
 
-### 🚧 Sprint 2: Core Functionality Hardening (2025-08-16 to 2025-08-26)
+### ✅ Sprint 2: Core Functionality Hardening (2025-08-16 to 2025-08-26)
 
 #### Progress
-- **Test Coverage:** 48.2% (Target: 50%)
-- **Completed:** 5/6 features (83%)
+- **Test Coverage:** 56.4% (Target: 50% ✅)
+- **Completed:** 6/6 features (100% ✅)
 
 #### Completed
 - [x] Rate limiting middleware (60 req/min default)
@@ -71,7 +71,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Proper HTTP status codes for each error type
   - Error handler middleware for centralized error handling
   - 100% test coverage for error package
-- [ ] Connection pooling & Request timeout handling (Day 6-7)
+- [x] Connection pooling & Request timeout handling (Day 6-7)
+  - Configurable HTTP timeouts (read, write, idle, handler)
+  - Storage connection pool with configurable size
+  - Request timeout middleware with context propagation
+  - Connection pool metrics (size, wait time)
+  - Timeout metrics tracking
+  - Comprehensive test coverage for all new features
 
 ### 🔜 Sprint 3: SMTP Security & Standards (2025-09-02 to 2025-09-12)
 
