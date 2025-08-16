@@ -71,22 +71,22 @@ func (i *Installer) configurePostfix() error {
 
 	// Set Postfix configuration parameters
 	settings := map[string]string{
-		"myhostname":                i.config.MailHostname,
-		"mydomain":                  i.config.PrimaryDomain,
-		"myorigin":                  "$mydomain",
-		"inet_interfaces":           "all",
-		"inet_protocols":            "ipv4",
-		"mydestination":             "localhost",
-		"local_recipient_maps":      "",
-		"virtual_mailbox_domains":   i.config.PrimaryDomain,
-		"virtual_mailbox_maps":      "regexp:/etc/postfix/virtual_mailbox_regex",
-		"virtual_transport":         "mailapi:",
+		"myhostname":                          i.config.MailHostname,
+		"mydomain":                            i.config.PrimaryDomain,
+		"myorigin":                            "$mydomain",
+		"inet_interfaces":                     "all",
+		"inet_protocols":                      "ipv4",
+		"mydestination":                       "localhost",
+		"local_recipient_maps":                "",
+		"virtual_mailbox_domains":             i.config.PrimaryDomain,
+		"virtual_mailbox_maps":                "regexp:/etc/postfix/virtual_mailbox_regex",
+		"virtual_transport":                   "mailapi:",
 		"mailapi_destination_recipient_limit": "1",
-		"message_size_limit":        "26214400",
-		"mailbox_size_limit":        "0",
-		"smtpd_banner":              "$myhostname ESMTP",
-		"smtpd_relay_restrictions":  "permit_mynetworks,reject_unauth_destination",
-		"smtpd_recipient_restrictions": "permit_mynetworks,reject_unauth_destination",
+		"message_size_limit":                  "26214400",
+		"mailbox_size_limit":                  "0",
+		"smtpd_banner":                        "$myhostname ESMTP",
+		"smtpd_relay_restrictions":            "permit_mynetworks,reject_unauth_destination",
+		"smtpd_recipient_restrictions":        "permit_mynetworks,reject_unauth_destination",
 	}
 
 	for key, value := range settings {
@@ -116,7 +116,7 @@ func (i *Installer) configurePostfix() error {
 func (i *Installer) updateDomains() error {
 	// Ensure primary domain is in domains list
 	domains := []string{}
-	
+
 	// Read existing domains
 	if content, err := os.ReadFile("/etc/postfix/domains.list"); err == nil {
 		for _, line := range strings.Split(string(content), "\n") {
@@ -126,7 +126,7 @@ func (i *Installer) updateDomains() error {
 			}
 		}
 	}
-	
+
 	// Add primary domain if not present
 	found := false
 	for _, d := range domains {
@@ -135,16 +135,16 @@ func (i *Installer) updateDomains() error {
 			break
 		}
 	}
-	
+
 	if !found {
 		domains = append(domains, i.config.PrimaryDomain)
-		
+
 		// Update domains list file
 		content := strings.Join(domains, "\n") + "\n"
 		if err := os.WriteFile("/etc/postfix/domains.list", []byte(content), 0644); err != nil {
 			return fmt.Errorf("failed to update domains list: %w", err)
 		}
-		
+
 		// Update Postfix configuration
 		domainsStr := strings.Join(domains, " ")
 		cmd := exec.Command("postconf", "-e", fmt.Sprintf("virtual_mailbox_domains=%s", domainsStr))
@@ -152,7 +152,7 @@ func (i *Installer) updateDomains() error {
 			return fmt.Errorf("failed to update virtual domains: %w", err)
 		}
 	}
-	
+
 	return nil
 }
 
@@ -229,7 +229,7 @@ fi
 func (i *Installer) configureMasterCF() error {
 	// Add mailapi transport to master.cf
 	masterCFPath := "/etc/postfix/master.cf"
-	
+
 	// Read current master.cf
 	content, err := os.ReadFile(masterCFPath)
 	if err != nil {
@@ -244,7 +244,7 @@ func (i *Installer) configureMasterCF() error {
 			lines := strings.Split(string(content), "\n")
 			newLines := []string{}
 			skipNext := false
-			
+
 			for _, line := range lines {
 				if strings.HasPrefix(line, "mailapi") {
 					skipNext = true
@@ -256,7 +256,7 @@ func (i *Installer) configureMasterCF() error {
 				skipNext = false
 				newLines = append(newLines, line)
 			}
-			
+
 			content = []byte(strings.Join(newLines, "\n"))
 		} else {
 			return nil // Already properly configured

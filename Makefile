@@ -34,7 +34,35 @@ dev:
 
 # Run tests
 test:
-	$(GOTEST) -v ./...
+	$(GOTEST) -v -race -coverprofile=coverage.txt -covermode=atomic ./...
+
+# Run linter (requires golangci-lint)
+lint:
+	@which golangci-lint > /dev/null || (echo "Installing golangci-lint..." && go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest)
+	golangci-lint run --timeout=5m ./...
+
+# Format code
+fmt:
+	$(GOCMD) fmt ./...
+	@echo "✓ Code formatted"
+
+# Check formatting
+fmt-check:
+	@if [ -n "$$(gofmt -l .)" ]; then \
+		echo "The following files need formatting:"; \
+		gofmt -l .; \
+		exit 1; \
+	fi
+	@echo "✓ All files are properly formatted"
+
+# Run all checks (what CI runs)
+check: fmt-check lint test build
+	@echo "✓ All checks passed!"
+
+# Quick check before pushing (faster than full check)
+pre-push: fmt-check lint build
+	$(GOTEST) -short ./...
+	@echo "✓ Pre-push checks passed!"
 
 # Clean build artifacts
 clean:
@@ -73,7 +101,12 @@ help:
 	@echo "  make build         - Build the binary"
 	@echo "  make install       - Install binary to $(INSTALL_PATH)"
 	@echo "  make run           - Run the server locally"
-	@echo "  make test          - Run tests"
+	@echo "  make test          - Run tests with race detection and coverage"
+	@echo "  make lint          - Run golangci-lint"
+	@echo "  make fmt           - Format code"
+	@echo "  make fmt-check     - Check code formatting"
+	@echo "  make check         - Run all CI checks (fmt, lint, test, build)"
+	@echo "  make pre-push      - Quick checks before pushing"
 	@echo "  make clean         - Clean build artifacts"
 	@echo "  make deps          - Download dependencies"
 	@echo "  make system-install - Full system installation"

@@ -48,7 +48,7 @@ the API service, and DNS configuration.`,
 				log.Println("Installing and configuring Postfix...")
 				log.Printf("  Mail hostname: %s", cfg.MailHostname)
 				log.Printf("  Primary domain: %s", cfg.PrimaryDomain)
-				
+
 				installer := postfix.NewInstaller(cfg)
 				if err := installer.Install(); err != nil {
 					return fmt.Errorf("failed to install Postfix: %w", err)
@@ -109,7 +109,7 @@ func installAPIService(cfg *config.Config) error {
 	if err != nil {
 		return fmt.Errorf("failed to get current binary path: %w", err)
 	}
-	
+
 	targetBinary := "/usr/local/bin/mailserver"
 	if currentBinary != targetBinary {
 		// Copy binary to system location
@@ -117,7 +117,7 @@ func installAPIService(cfg *config.Config) error {
 		if err != nil {
 			return fmt.Errorf("failed to read binary: %w", err)
 		}
-		
+
 		if err := os.WriteFile(targetBinary, source, 0755); err != nil {
 			return fmt.Errorf("failed to install binary: %w", err)
 		}
@@ -133,7 +133,7 @@ func installAPIService(cfg *config.Config) error {
 	if err := os.MkdirAll(cfg.DataDir, 0755); err != nil {
 		return fmt.Errorf("failed to create data directory: %w", err)
 	}
-	
+
 	// Set ownership to mailserver user
 	cmd := exec.Command("chown", "-R", "mailserver:mailserver", cfg.DataDir)
 	if err := cmd.Run(); err != nil {
@@ -210,8 +210,8 @@ MAIL_MAIL_HOSTNAME=%s
 MAIL_PRIMARY_DOMAIN=%s
 MAIL_API_ENDPOINT=%s
 API_ENDPOINT=%s
-`, cfg.BearerToken, cfg.BearerToken, cfg.Port, cfg.DataDir, cfg.Mode, 
-   cfg.MailHostname, cfg.PrimaryDomain, cfg.APIEndpoint, cfg.APIEndpoint)
+`, cfg.BearerToken, cfg.BearerToken, cfg.Port, cfg.DataDir, cfg.Mode,
+		cfg.MailHostname, cfg.PrimaryDomain, cfg.APIEndpoint, cfg.APIEndpoint)
 
 	if err := os.WriteFile("/etc/sysconfig/mailserver", []byte(content), 0600); err != nil {
 		return fmt.Errorf("failed to write environment file: %w", err)

@@ -20,18 +20,18 @@ import (
 )
 
 type Server struct {
-	config      *config.Config
-	httpServer  *http.Server
-	listener    net.Listener
-	storage     *storage.FileStorage
-	metrics     *Metrics
+	config     *config.Config
+	httpServer *http.Server
+	listener   net.Listener
+	storage    *storage.FileStorage
+	metrics    *Metrics
 }
 
 type Metrics struct {
-	TotalEmails    atomic.Int64
-	TotalBytes     atomic.Int64
-	LastReceived   atomic.Value // time.Time
-	StartTime      time.Time
+	TotalEmails  atomic.Int64
+	TotalBytes   atomic.Int64
+	LastReceived atomic.Value // time.Time
+	StartTime    time.Time
 }
 
 func NewServer(cfg *config.Config) (*Server, error) {
@@ -57,11 +57,11 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	mux.HandleFunc("/metrics", s.handleMetrics)
 
 	s.httpServer = &http.Server{
-		Handler:           mux,
-		ReadTimeout:       30 * time.Second,
-		WriteTimeout:      30 * time.Second,
-		IdleTimeout:       60 * time.Second,
-		MaxHeaderBytes:    1 << 20, // 1MB
+		Handler:        mux,
+		ReadTimeout:    30 * time.Second,
+		WriteTimeout:   30 * time.Second,
+		IdleTimeout:    60 * time.Second,
+		MaxHeaderBytes: 1 << 20, // 1MB
 	}
 
 	return s, nil
@@ -149,7 +149,7 @@ func (s *Server) handleMailInbound(w http.ResponseWriter, r *http.Request) {
 	case strings.Contains(contentType, "message/rfc822"):
 		// Raw email format
 		emailData, err = mail.ParseRawEmail(string(body), extractHeadersFromRequest(r))
-		
+
 	case strings.Contains(contentType, "application/json"):
 		// JSON format (legacy)
 		var jsonData map[string]interface{}
@@ -158,7 +158,7 @@ func (s *Server) handleMailInbound(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		emailData = mail.FromJSON(jsonData)
-		
+
 	default:
 		// Try to detect format
 		if body[0] == '{' {
@@ -229,11 +229,11 @@ func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := map[string]interface{}{
-		"total_emails":    s.metrics.TotalEmails.Load(),
-		"total_bytes":     s.metrics.TotalBytes.Load(),
-		"last_received":   lastReceived,
-		"uptime_seconds":  time.Since(s.metrics.StartTime).Seconds(),
-		"start_time":      s.metrics.StartTime.Format(time.RFC3339),
+		"total_emails":   s.metrics.TotalEmails.Load(),
+		"total_bytes":    s.metrics.TotalBytes.Load(),
+		"last_received":  lastReceived,
+		"uptime_seconds": time.Since(s.metrics.StartTime).Seconds(),
+		"start_time":     s.metrics.StartTime.Format(time.RFC3339),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -244,13 +244,13 @@ func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 
 func extractHeadersFromRequest(r *http.Request) map[string]string {
 	headers := make(map[string]string)
-	
+
 	// Extract X-Original-* headers from HTTP request
 	for key, values := range r.Header {
 		if strings.HasPrefix(key, "X-Original-") && len(values) > 0 {
 			headers[key] = values[0]
 		}
 	}
-	
+
 	return headers
 }

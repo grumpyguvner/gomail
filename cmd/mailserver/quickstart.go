@@ -60,7 +60,7 @@ func runQuickstart(cmd *cobra.Command, args []string) error {
 	if _, err := os.Stat(configPath); err == nil {
 		isFreshInstall = false
 		fmt.Printf("📋 Existing configuration detected at %s\n", configPath)
-		
+
 		// Read existing configuration
 		existingData, err := os.ReadFile(configPath)
 		if err == nil {
@@ -101,7 +101,7 @@ func runQuickstart(cmd *cobra.Command, args []string) error {
 			fmt.Print("Enter your primary domain (e.g., example.com): ")
 			input, _ := reader.ReadString('\n')
 			domain = strings.TrimSpace(input)
-			
+
 			if domain == "" {
 				hostname, _ := os.Hostname()
 				if hostname != "" {
@@ -148,7 +148,7 @@ func runQuickstart(cmd *cobra.Command, args []string) error {
 
 	// Write configuration file
 	fmt.Printf("\n📝 Writing configuration to %s...\n", configPath)
-	
+
 	configData, err := yaml.Marshal(config)
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)
@@ -283,6 +283,6 @@ WantedBy=multi-user.target
 		fmt.Println()
 		fmt.Println("🔐 IMPORTANT: Save your bearer token securely!")
 	}
-	
+
 	return nil
 }

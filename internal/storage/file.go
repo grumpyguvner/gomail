@@ -52,7 +52,7 @@ func (fs *FileStorage) Store(email *mail.EmailData) (string, error) {
 	if _, err := rand.Read(randomBytes); err != nil {
 		return "", fmt.Errorf("failed to generate random ID: %w", err)
 	}
-	
+
 	filename := fmt.Sprintf("msg_%d_%s.json", now.Unix(), hex.EncodeToString(randomBytes))
 	fullPath := filepath.Join(dir, filename)
 
@@ -76,7 +76,7 @@ func (fs *FileStorage) List(date time.Time) ([]string, error) {
 	day := date.Format("02")
 
 	dir := filepath.Join(fs.baseDir, "inbox", year, month, day)
-	
+
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {

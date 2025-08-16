@@ -32,16 +32,16 @@ type AuthenticationMetadata struct {
 }
 
 type SPFMetadata struct {
-	ClientIP         string `json:"client_ip,omitempty"`
-	MailFrom         string `json:"mail_from,omitempty"`
-	HeloDomain       string `json:"helo_domain,omitempty"`
+	ClientIP          string `json:"client_ip,omitempty"`
+	MailFrom          string `json:"mail_from,omitempty"`
+	HeloDomain        string `json:"helo_domain,omitempty"`
 	ReceivedSPFHeader string `json:"received_spf_header,omitempty"`
 }
 
 type DKIMMetadata struct {
-	Signatures  []string `json:"signatures,omitempty"`
-	FromDomain  string   `json:"from_domain,omitempty"`
-	SignedBy    []string `json:"signed_by,omitempty"`
+	Signatures []string `json:"signatures,omitempty"`
+	FromDomain string   `json:"from_domain,omitempty"`
+	SignedBy   []string `json:"signed_by,omitempty"`
 }
 
 type DMARCMetadata struct {
@@ -66,14 +66,14 @@ func ParseRawEmail(rawEmail string, httpHeaders map[string]string) (*EmailData, 
 	header := msg.Header
 	data.Subject = header.Get("Subject")
 	data.MessageID = header.Get("Message-ID")
-	
+
 	// Extract From and To
 	if from, err := mail.ParseAddress(header.Get("From")); err == nil {
 		data.Sender = from.Address
 	} else {
 		data.Sender = header.Get("From")
 	}
-	
+
 	if to := header.Get("To"); to != "" {
 		if addr, err := mail.ParseAddress(to); err == nil {
 			data.Recipient = addr.Address

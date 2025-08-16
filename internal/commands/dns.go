@@ -26,17 +26,17 @@ func newDNSSetupCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			domain := args[0]
-			
+
 			fmt.Printf("Setting up DNS records for %s...\n", domain)
 			fmt.Println("DNS automation will be implemented here")
-			
+
 			// TODO: Implement DigitalOcean DNS API integration
 			// - Create MX record pointing to mail hostname
 			// - Create A record for mail hostname
 			// - Create SPF record
 			// - Create DKIM record (if DKIM is configured)
 			// - Create DMARC record
-			
+
 			return nil
 		},
 	}
@@ -49,18 +49,18 @@ func newDNSCheckCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			domain := args[0]
-			
+
 			fmt.Printf("Checking DNS records for %s...\n\n", domain)
-			
+
 			// TODO: Implement DNS checking
 			// - Check MX records
 			// - Check A record for mail hostname
 			// - Check SPF record
 			// - Check DKIM record
 			// - Check DMARC record
-			
+
 			fmt.Println("DNS checking will be implemented here")
-			
+
 			return nil
 		},
 	}

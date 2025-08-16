@@ -46,7 +46,7 @@ func (m *DomainManager) AddDomain(domain string) error {
 	// Update Postfix virtual_mailbox_domains
 	domains = append(domains, domain)
 	domainsStr := strings.Join(domains, " ")
-	
+
 	cmd := exec.Command("postconf", "-e", fmt.Sprintf("virtual_mailbox_domains=%s", domainsStr))
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to update Postfix configuration: %w", err)
@@ -82,7 +82,7 @@ func (m *DomainManager) RemoveDomain(domain string) error {
 	if len(newDomains) > 0 {
 		content += "\n"
 	}
-	
+
 	if err := os.WriteFile(m.config.PostfixDomainsList, []byte(content), 0644); err != nil {
 		return fmt.Errorf("failed to update domains.list: %w", err)
 	}
@@ -92,7 +92,7 @@ func (m *DomainManager) RemoveDomain(domain string) error {
 	if domainsStr == "" {
 		domainsStr = "localhost" // Postfix needs at least one domain
 	}
-	
+
 	cmd := exec.Command("postconf", "-e", fmt.Sprintf("virtual_mailbox_domains=%s", domainsStr))
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to update Postfix configuration: %w", err)

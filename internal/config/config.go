@@ -35,7 +35,7 @@ type Config struct {
 
 func Load() (*Config, error) {
 	cfg := &Config{}
-	
+
 	// Set defaults
 	viper.SetDefault("port", 3000)
 	viper.SetDefault("mode", "simple")

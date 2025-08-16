@@ -94,7 +94,7 @@ func testPort25() error {
 func sendTestEmail(cfg *config.Config) error {
 	// Use swaks if available, otherwise use sendmail
 	testAddr := fmt.Sprintf("test@%s", cfg.PrimaryDomain)
-	
+
 	// Try swaks first
 	cmd := exec.Command("which", "swaks")
 	if err := cmd.Run(); err == nil {
@@ -109,6 +109,6 @@ func sendTestEmail(cfg *config.Config) error {
 			return fmt.Errorf("failed to send test email: %w", err)
 		}
 	}
-	
+
 	return nil
 }

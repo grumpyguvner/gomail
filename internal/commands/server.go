@@ -17,9 +17,9 @@ import (
 
 func NewServerCommand() *cobra.Command {
 	var (
-		port     int
-		mode     string
-		dataDir  string
+		port        int
+		mode        string
+		dataDir     string
 		bearerToken string
 	)
 
@@ -33,7 +33,7 @@ func NewServerCommand() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("failed to load configuration: %w", err)
 			}
-			
+
 			// Override with command-line flags if provided
 			if cmd.Flags().Changed("port") {
 				cfg.Port = port

@@ -70,7 +70,7 @@ func newDomainAddCommand() *cobra.Command {
 			}
 
 			log.Printf("\nDomain %s is now configured to receive email", domain)
-			
+
 			if !configureDNS {
 				log.Println("\nDon't forget to configure DNS records:")
 				log.Printf("  MX: %s -> %s (priority 10)", domain, cfg.MailHostname)

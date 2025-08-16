@@ -96,7 +96,7 @@ func newConfigSetCommand() *cobra.Command {
 
 			fmt.Printf("✓ Configuration updated: %s = %s\n", key, value)
 			fmt.Printf("  Saved to: %s\n", configPath)
-			
+
 			// If it's a critical setting, remind to restart services
 			if key == "bearer_token" || key == "api_endpoint" || key == "port" {
 				fmt.Println("\n⚠️  Remember to restart services for changes to take effect:")
