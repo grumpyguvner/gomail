@@ -27,18 +27,17 @@ func TestServer_GracefulShutdown(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	serverStarted := make(chan struct{})
 	go func() {
+		close(serverStarted)
 		if err := server.Start(ctx); err != nil {
 			t.Errorf("Server start error: %v", err)
 		}
 	}()
 
 	// Wait for server to start
+	<-serverStarted
 	time.Sleep(100 * time.Millisecond)
-
-	// Get the actual port
-	addr := server.listener.Addr().String()
-	baseURL := fmt.Sprintf("http://%s", addr)
 
 	// Test normal shutdown without active requests
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -87,7 +86,7 @@ func TestServer_GracefulShutdown_WithActiveRequests(t *testing.T) {
 	// Test that active requests are tracked correctly
 	// Note: In a real scenario, actual HTTP requests would increment this counter
 	server.activeRequests.Store(3)
-	
+
 	// Verify initial state
 	if active := server.activeRequests.Load(); active != 3 {
 		t.Errorf("Expected 3 active requests, got %d", active)
@@ -95,7 +94,7 @@ func TestServer_GracefulShutdown_WithActiveRequests(t *testing.T) {
 
 	// Trigger shutdown signal
 	cancel()
-	
+
 	// Shutdown with timeout
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer shutdownCancel()
@@ -105,7 +104,7 @@ func TestServer_GracefulShutdown_WithActiveRequests(t *testing.T) {
 	if err != nil {
 		t.Errorf("Shutdown failed: %v", err)
 	}
-	
+
 	// Verify shutdown flag is set
 	if !server.shutdownStarted.Load() {
 		t.Error("Expected shutdown flag to be set")
@@ -232,7 +231,7 @@ func TestServer_RejectRequestsDuringShutdown(t *testing.T) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusServiceUnavailable {
-		t.Errorf("Expected status %d during shutdown, got %d", 
+		t.Errorf("Expected status %d during shutdown, got %d",
 			http.StatusServiceUnavailable, resp.StatusCode)
 	}
 
@@ -240,7 +239,7 @@ func TestServer_RejectRequestsDuringShutdown(t *testing.T) {
 	cancel()
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer shutdownCancel()
-	server.Shutdown(shutdownCtx)
+	_ = server.Shutdown(shutdownCtx)
 }
 
 func TestServer_MetricsActiveRequests(t *testing.T) {

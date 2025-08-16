@@ -33,11 +33,11 @@ type Server struct {
 }
 
 type Metrics struct {
-	TotalEmails     atomic.Int64
-	TotalBytes      atomic.Int64
-	LastReceived    atomic.Value // time.Time
-	StartTime       time.Time
-	ActiveRequests  *atomic.Int64 // Pointer to server's activeRequests
+	TotalEmails    atomic.Int64
+	TotalBytes     atomic.Int64
+	LastReceived   atomic.Value // time.Time
+	StartTime      time.Time
+	ActiveRequests *atomic.Int64 // Pointer to server's activeRequests
 }
 
 func NewServer(cfg *config.Config) (*Server, error) {
@@ -52,7 +52,7 @@ func NewServer(cfg *config.Config) (*Server, error) {
 		storage:   store,
 		validator: validation.NewEmailValidator(),
 	}
-	
+
 	s.metrics = &Metrics{
 		StartTime:      time.Now(),
 		ActiveRequests: &s.activeRequests,
@@ -120,19 +120,19 @@ func (s *Server) Start(ctx context.Context) error {
 
 func (s *Server) Shutdown(ctx context.Context) error {
 	s.shutdownStarted.Store(true)
-	
+
 	// Log current state
 	activeReqs := s.activeRequests.Load()
 	if activeReqs > 0 {
 		logging.Get().Infof("Waiting for %d active requests to complete...", activeReqs)
 	}
-	
+
 	// Monitor shutdown progress
 	done := make(chan struct{})
 	go func() {
 		ticker := time.NewTicker(5 * time.Second)
 		defer ticker.Stop()
-		
+
 		for {
 			select {
 			case <-ticker.C:
@@ -146,11 +146,11 @@ func (s *Server) Shutdown(ctx context.Context) error {
 			}
 		}
 	}()
-	
+
 	// Perform shutdown
 	err := s.httpServer.Shutdown(ctx)
 	close(done)
-	
+
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			forcedClose := s.activeRequests.Load()
@@ -160,7 +160,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 		}
 		return err
 	}
-	
+
 	logging.Get().Info("All connections drained successfully")
 	return nil
 }
@@ -168,10 +168,10 @@ func (s *Server) Shutdown(ctx context.Context) error {
 func (s *Server) applyMiddleware(handler http.Handler) http.Handler {
 	// Apply middlewares in reverse order (innermost first)
 	// Request flow: ActiveRequest -> RateLimit -> RequestID -> Recovery -> handler
-	
+
 	// Track active requests for graceful shutdown
 	handler = s.activeRequestsMiddleware(handler)
-	
+
 	handler = middleware.RecoveryMiddleware(handler)
 	handler = middleware.RequestIDMiddleware(handler)
 
@@ -198,10 +198,10 @@ func (s *Server) activeRequestsMiddleware(next http.Handler) http.Handler {
 			http.Error(w, "Server is shutting down", http.StatusServiceUnavailable)
 			return
 		}
-		
+
 		s.activeRequests.Add(1)
 		defer s.activeRequests.Add(-1)
-		
+
 		next.ServeHTTP(w, r)
 	})
 }
@@ -343,13 +343,13 @@ func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := map[string]interface{}{
-		"total_emails":     s.metrics.TotalEmails.Load(),
-		"total_bytes":      s.metrics.TotalBytes.Load(),
-		"last_received":    lastReceived,
-		"uptime_seconds":   time.Since(s.metrics.StartTime).Seconds(),
-		"start_time":       s.metrics.StartTime.Format(time.RFC3339),
-		"active_requests":  s.activeRequests.Load(),
-		"shutting_down":    s.shutdownStarted.Load(),
+		"total_emails":    s.metrics.TotalEmails.Load(),
+		"total_bytes":     s.metrics.TotalBytes.Load(),
+		"last_received":   lastReceived,
+		"uptime_seconds":  time.Since(s.metrics.StartTime).Seconds(),
+		"start_time":      s.metrics.StartTime.Format(time.RFC3339),
+		"active_requests": s.activeRequests.Load(),
+		"shutting_down":   s.shutdownStarted.Load(),
 	}
 
 	w.Header().Set("Content-Type", "application/json")
