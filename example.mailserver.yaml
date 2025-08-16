@@ -1,0 +1,27 @@
+# Example GoMail Configuration
+# Copy this file to mailserver.yaml and update with your settings
+
+# Server configuration
+port: 3000
+mode: simple  # Options: simple, socket
+data_dir: /opt/mailserver/data
+
+# Security
+bearer_token: change-this-to-a-secure-token
+
+# Mail server configuration
+mail_hostname: mail.example.com
+primary_domain: example.com
+infra_domain: example.com
+
+# API configuration
+api_endpoint: http://localhost:3000/mail/inbound
+
+# Optional: DigitalOcean DNS automation
+# Uncomment and add your token to enable automatic DNS configuration
+# do_api_token: your-digitalocean-api-token
+
+# Postfix paths (usually don't need to change these)
+postfix_main_cf: /etc/postfix/main.cf
+postfix_virtual_regex: /etc/postfix/virtual_mailbox_regex
+postfix_domains_list: /etc/postfix/domains.list
