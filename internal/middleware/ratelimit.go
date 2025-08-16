@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/grumpyguvner/gomail/internal/metrics"
 	"go.uber.org/zap"
 )
 
@@ -56,12 +57,18 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 				zap.String("method", r.Method),
 			)
 
+			// Record rate limit denied metric
+			metrics.RateLimitHits.WithLabelValues("denied").Inc()
+
 			w.Header().Set("X-RateLimit-Limit", string(rune(rl.rate)))
 			w.Header().Set("X-RateLimit-Remaining", "0")
 			w.Header().Set("Retry-After", "60")
 			http.Error(w, "Rate limit exceeded", http.StatusTooManyRequests)
 			return
 		}
+
+		// Record rate limit allowed metric
+		metrics.RateLimitHits.WithLabelValues("allowed").Inc()
 
 		// Get remaining tokens for headers
 		remaining := rl.getRemaining(ip)

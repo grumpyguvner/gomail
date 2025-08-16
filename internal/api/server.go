@@ -10,12 +10,14 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/grumpyguvner/gomail/internal/config"
 	"github.com/grumpyguvner/gomail/internal/logging"
 	"github.com/grumpyguvner/gomail/internal/mail"
+	"github.com/grumpyguvner/gomail/internal/metrics"
 	"github.com/grumpyguvner/gomail/internal/middleware"
 	"github.com/grumpyguvner/gomail/internal/storage"
 	"github.com/grumpyguvner/gomail/internal/validation"
@@ -25,6 +27,7 @@ type Server struct {
 	config          *config.Config
 	httpServer      *http.Server
 	listener        net.Listener
+	listenerMu      sync.RWMutex
 	storage         *storage.FileStorage
 	metrics         *Metrics
 	validator       *validation.EmailValidator
@@ -85,30 +88,46 @@ func (s *Server) Start(ctx context.Context) error {
 	switch s.config.Mode {
 	case "socket":
 		// Socket activation mode (systemd)
+		var listener net.Listener
 		if os.Getenv("LISTEN_FDS") == "1" {
 			// Use systemd socket
-			s.listener, err = net.FileListener(os.NewFile(3, ""))
+			listener, err = net.FileListener(os.NewFile(3, ""))
 			if err != nil {
 				return fmt.Errorf("failed to get systemd socket: %w", err)
 			}
 		} else {
 			// Fallback to regular TCP
-			s.listener, err = net.Listen("tcp", fmt.Sprintf(":%d", s.config.Port))
+			listener, err = net.Listen("tcp", fmt.Sprintf(":%d", s.config.Port))
 			if err != nil {
 				return fmt.Errorf("failed to listen: %w", err)
 			}
 		}
+		s.listenerMu.Lock()
+		s.listener = listener
+		s.listenerMu.Unlock()
 	default:
 		// Simple mode - standard TCP listener
-		s.listener, err = net.Listen("tcp", fmt.Sprintf(":%d", s.config.Port))
+		listener, err := net.Listen("tcp", fmt.Sprintf(":%d", s.config.Port))
 		if err != nil {
 			return fmt.Errorf("failed to listen: %w", err)
 		}
+		s.listenerMu.Lock()
+		s.listener = listener
+		s.listenerMu.Unlock()
 	}
 
 	// Start serving
 	go func() {
-		if err := s.httpServer.Serve(s.listener); err != nil && err != http.ErrServerClosed {
+		s.listenerMu.RLock()
+		listener := s.listener
+		s.listenerMu.RUnlock()
+		
+		if listener == nil {
+			logging.Get().Error("Listener is nil, cannot start server")
+			return
+		}
+		
+		if err := s.httpServer.Serve(listener); err != nil && err != http.ErrServerClosed {
 			logging.Get().Errorf("Server error: %v", err)
 		}
 	}()
@@ -118,7 +137,15 @@ func (s *Server) Start(ctx context.Context) error {
 	return nil
 }
 
+// GetListener returns the server's listener in a thread-safe way
+func (s *Server) GetListener() net.Listener {
+	s.listenerMu.RLock()
+	defer s.listenerMu.RUnlock()
+	return s.listener
+}
+
 func (s *Server) Shutdown(ctx context.Context) error {
+	shutdownStart := time.Now()
 	s.shutdownStarted.Store(true)
 
 	// Log current state
@@ -151,23 +178,29 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	err := s.httpServer.Shutdown(ctx)
 	close(done)
 
+	// Record shutdown metrics
+	shutdownDuration := time.Since(shutdownStart)
+	metrics.ShutdownDuration.Observe(shutdownDuration.Seconds())
+
 	if err != nil {
 		if err == context.DeadlineExceeded {
 			forcedClose := s.activeRequests.Load()
 			if forcedClose > 0 {
 				logging.Get().Warnf("Forced shutdown with %d active requests", forcedClose)
+				metrics.ShutdownsInitiated.WithLabelValues("forced").Inc()
 			}
 		}
 		return err
 	}
 
+	metrics.ShutdownsInitiated.WithLabelValues("graceful").Inc()
 	logging.Get().Info("All connections drained successfully")
 	return nil
 }
 
 func (s *Server) applyMiddleware(handler http.Handler) http.Handler {
 	// Apply middlewares in reverse order (innermost first)
-	// Request flow: ActiveRequest -> RateLimit -> RequestID -> Recovery -> handler
+	// Request flow: Prometheus -> ActiveRequest -> RateLimit -> RequestID -> Recovery -> handler
 
 	// Track active requests for graceful shutdown
 	handler = s.activeRequestsMiddleware(handler)
@@ -187,6 +220,9 @@ func (s *Server) applyMiddleware(handler http.Handler) http.Handler {
 
 	rateLimiter := middleware.NewRateLimiter(rate, burst, 5*time.Minute, logging.Get().Desugar())
 	handler = rateLimiter.Middleware(handler)
+
+	// Add Prometheus metrics middleware as the outermost layer
+	handler = middleware.PrometheusMiddleware(handler)
 
 	return handler
 }
@@ -225,6 +261,9 @@ func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 }
 
 func (s *Server) handleMailInbound(w http.ResponseWriter, r *http.Request) {
+	// Start timing for processing duration
+	start := time.Now()
+
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -236,6 +275,9 @@ func (s *Server) handleMailInbound(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to read request body", http.StatusBadRequest)
 		return
 	}
+
+	// Record email size metric
+	metrics.EmailSize.Observe(float64(len(body)))
 
 	// Sanitize headers first
 	headers := validation.SanitizeHeaders(extractHeadersFromRequest(r))
@@ -275,6 +317,8 @@ func (s *Server) handleMailInbound(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		requestID := middleware.GetRequestIDFromRequest(r)
 		logging.WithRequestID(requestID).Errorf("Failed to parse email: %v", err)
+		metrics.EmailsProcessed.WithLabelValues("error").Inc()
+		metrics.EmailProcessingDuration.Observe(time.Since(start).Seconds())
 		http.Error(w, "Failed to parse email", http.StatusBadRequest)
 		return
 	}
@@ -283,6 +327,8 @@ func (s *Server) handleMailInbound(w http.ResponseWriter, r *http.Request) {
 	if err := s.validator.Validate(emailData); err != nil {
 		requestID := middleware.GetRequestIDFromRequest(r)
 		logging.WithRequestID(requestID).Errorf("Email validation failed: %v", err)
+		metrics.EmailsProcessed.WithLabelValues("rejected").Inc()
+		metrics.EmailProcessingDuration.Observe(time.Since(start).Seconds())
 		http.Error(w, fmt.Sprintf("Email validation failed: %v", err), http.StatusBadRequest)
 		return
 	}
@@ -292,14 +338,24 @@ func (s *Server) handleMailInbound(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		requestID := middleware.GetRequestIDFromRequest(r)
 		logging.WithRequestID(requestID).Errorf("Failed to store email: %v", err)
+		metrics.StorageOperations.WithLabelValues("write", "error").Inc()
+		metrics.EmailsProcessed.WithLabelValues("error").Inc()
+		metrics.EmailProcessingDuration.Observe(time.Since(start).Seconds())
 		http.Error(w, "Failed to store email", http.StatusInternalServerError)
 		return
 	}
+
+	// Record successful storage
+	metrics.StorageOperations.WithLabelValues("write", "success").Inc()
 
 	// Update metrics
 	s.metrics.TotalEmails.Add(1)
 	s.metrics.TotalBytes.Add(int64(len(body)))
 	s.metrics.LastReceived.Store(time.Now())
+
+	// Record successful email processing
+	metrics.EmailsProcessed.WithLabelValues("success").Inc()
+	metrics.EmailProcessingDuration.Observe(time.Since(start).Seconds())
 
 	// Send response
 	response := map[string]interface{}{

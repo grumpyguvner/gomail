@@ -28,6 +28,11 @@ type Config struct {
 	RateLimitPerMinute int `json:"rate_limit_per_minute" mapstructure:"rate_limit_per_minute"`
 	RateLimitBurst     int `json:"rate_limit_burst" mapstructure:"rate_limit_burst"`
 
+	// Metrics configuration
+	MetricsEnabled bool   `json:"metrics_enabled" mapstructure:"metrics_enabled"`
+	MetricsPort    int    `json:"metrics_port" mapstructure:"metrics_port"`
+	MetricsPath    string `json:"metrics_path" mapstructure:"metrics_path"`
+
 	// DNS configuration
 	DOAPIToken string `json:"do_api_token" mapstructure:"do_api_token"`
 
@@ -48,6 +53,9 @@ func Load() (*Config, error) {
 	viper.SetDefault("primary_domain", "example.com")
 	viper.SetDefault("rate_limit_per_minute", 60)
 	viper.SetDefault("rate_limit_burst", 10)
+	viper.SetDefault("metrics_enabled", true)
+	viper.SetDefault("metrics_port", 9090)
+	viper.SetDefault("metrics_path", "/metrics")
 	viper.SetDefault("api_endpoint", "http://localhost:3000/mail/inbound")
 	viper.SetDefault("postfix_main_cf", "/etc/postfix/main.cf")
 	viper.SetDefault("postfix_virtual_regex", "/etc/postfix/virtual_mailbox_regex")
@@ -65,6 +73,9 @@ func Load() (*Config, error) {
 	_ = viper.BindEnv("primary_domain", "MAIL_PRIMARY_DOMAIN")
 	_ = viper.BindEnv("mail_hostname", "MAIL_MAIL_HOSTNAME")
 	_ = viper.BindEnv("api_endpoint", "MAIL_API_ENDPOINT")
+	_ = viper.BindEnv("metrics_enabled", "MAIL_METRICS_ENABLED")
+	_ = viper.BindEnv("metrics_port", "MAIL_METRICS_PORT")
+	_ = viper.BindEnv("metrics_path", "MAIL_METRICS_PATH")
 	_ = viper.BindEnv("do_api_token", "MAIL_DO_API_TOKEN")
 
 	// Also check old environment variable names for compatibility

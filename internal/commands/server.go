@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,6 +12,8 @@ import (
 	"github.com/grumpyguvner/gomail/internal/api"
 	"github.com/grumpyguvner/gomail/internal/config"
 	"github.com/grumpyguvner/gomail/internal/logging"
+	"github.com/grumpyguvner/gomail/internal/metrics"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -58,10 +61,27 @@ func NewServerCommand() *cobra.Command {
 				return fmt.Errorf("bearer token must be configured (set API_BEARER_TOKEN environment variable)")
 			}
 
+			// Initialize metrics
+			metrics.Init()
+
 			// Create and start server
 			server, err := api.NewServer(cfg)
 			if err != nil {
 				return fmt.Errorf("failed to create server: %w", err)
+			}
+
+			// Start metrics server if enabled
+			if cfg.MetricsEnabled {
+				metricsAddr := fmt.Sprintf(":%d", cfg.MetricsPort)
+				mux := http.NewServeMux()
+				mux.Handle(cfg.MetricsPath, promhttp.Handler())
+
+				go func() {
+					logging.Get().Infof("Starting metrics server on %s%s", metricsAddr, cfg.MetricsPath)
+					if err := http.ListenAndServe(metricsAddr, mux); err != nil {
+						logging.Get().Errorf("Metrics server error: %v", err)
+					}
+				}()
 			}
 
 			// Setup graceful shutdown

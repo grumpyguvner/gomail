@@ -57,6 +57,9 @@ func (c *Config) ValidateSchema() error {
 	// Rate limiting validation
 	v.validateRateLimiting(c.RateLimitPerMinute, c.RateLimitBurst)
 
+	// Metrics validation
+	v.validateMetrics(c.MetricsEnabled, c.MetricsPort, c.MetricsPath)
+
 	// DNS configuration validation
 	v.validateDOAPIToken(c.DOAPIToken)
 
@@ -195,6 +198,25 @@ func (v *SchemaValidator) validateRateLimiting(perMinute, burst int) {
 	}
 }
 
+func (v *SchemaValidator) validateMetrics(enabled bool, port int, path string) {
+	if !enabled {
+		// If metrics are disabled, skip validation
+		return
+	}
+
+	// Validate metrics port
+	if port < 1 || port > 65535 {
+		v.addError("metrics_port", fmt.Sprintf("must be between 1 and 65535, got %d", port))
+	}
+
+	// Validate metrics path
+	if path == "" {
+		v.addError("metrics_path", "cannot be empty when metrics are enabled")
+	} else if !strings.HasPrefix(path, "/") {
+		v.addError("metrics_path", "must start with /")
+	}
+}
+
 func (v *SchemaValidator) validateDOAPIToken(token string) {
 	if token == "" {
 		// DO API token is optional
@@ -289,6 +311,23 @@ func GetConfigSchema() string {
 				"minimum":     0,
 				"default":     10,
 				"description": "Burst capacity for rate limiting",
+			},
+			"metrics_enabled": map[string]interface{}{
+				"type":        "boolean",
+				"default":     true,
+				"description": "Enable Prometheus metrics endpoint",
+			},
+			"metrics_port": map[string]interface{}{
+				"type":        "integer",
+				"minimum":     1,
+				"maximum":     65535,
+				"default":     9090,
+				"description": "Port for metrics server",
+			},
+			"metrics_path": map[string]interface{}{
+				"type":        "string",
+				"default":     "/metrics",
+				"description": "Path for metrics endpoint",
 			},
 			"do_api_token": map[string]interface{}{
 				"type":        "string",

@@ -17,6 +17,15 @@ infra_domain: example.com
 # API configuration
 api_endpoint: http://localhost:3000/mail/inbound
 
+# Rate limiting configuration
+rate_limit_per_minute: 60
+rate_limit_burst: 10
+
+# Prometheus metrics configuration
+metrics_enabled: true
+metrics_port: 9090
+metrics_path: /metrics
+
 # Optional: DigitalOcean DNS automation
 # Uncomment and add your token to enable automatic DNS configuration
 # do_api_token: your-digitalocean-api-token

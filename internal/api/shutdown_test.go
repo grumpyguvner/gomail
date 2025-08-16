@@ -27,17 +27,31 @@ func TestServer_GracefulShutdown(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	serverStarted := make(chan struct{})
+	serverError := make(chan error, 1)
 	go func() {
-		close(serverStarted)
 		if err := server.Start(ctx); err != nil {
-			t.Errorf("Server start error: %v", err)
+			serverError <- err
 		}
 	}()
 
 	// Wait for server to start
-	<-serverStarted
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
+
+	// Check for server errors
+	select {
+	case err := <-serverError:
+		t.Fatalf("Server failed to start: %v", err)
+	default:
+		// Server started successfully
+	}
+
+	// Get the actual port - server.listener should be set after Start
+	listener := server.GetListener()
+	if listener == nil {
+		t.Fatal("Server listener is nil after start")
+	}
+	addr := listener.Addr().String()
+	baseURL := fmt.Sprintf("http://%s", addr)
 
 	// Test normal shutdown without active requests
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -74,14 +88,23 @@ func TestServer_GracefulShutdown_WithActiveRequests(t *testing.T) {
 	// Start server
 	ctx, cancel := context.WithCancel(context.Background())
 
+	serverError := make(chan error, 1)
 	go func() {
 		if err := server.Start(ctx); err != nil && err != context.Canceled {
-			t.Errorf("Server start error: %v", err)
+			serverError <- err
 		}
 	}()
 
 	// Wait for server to start
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
+
+	// Check for server errors
+	select {
+	case err := <-serverError:
+		t.Fatalf("Server failed to start: %v", err)
+	default:
+		// Server started successfully
+	}
 
 	// Test that active requests are tracked correctly
 	// Note: In a real scenario, actual HTTP requests would increment this counter
@@ -139,16 +162,28 @@ func TestServer_GracefulShutdown_Timeout(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	serverError := make(chan error, 1)
 	go func() {
 		if err := server.Start(ctx); err != nil {
-			t.Errorf("Server start error: %v", err)
+			serverError <- err
 		}
 	}()
 
 	// Wait for server to start
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
+
+	// Check for server errors
+	select {
+	case err := <-serverError:
+		t.Fatalf("Server failed to start: %v", err)
+	default:
+		// Server started successfully
+	}
 
 	// Get the actual port
+	if server.listener == nil {
+		t.Fatal("Server listener is nil after start")
+	}
 	addr := server.listener.Addr().String()
 	baseURL := fmt.Sprintf("http://%s", addr)
 
@@ -207,16 +242,28 @@ func TestServer_RejectRequestsDuringShutdown(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	serverError := make(chan error, 1)
 	go func() {
 		if err := server.Start(ctx); err != nil {
-			t.Errorf("Server start error: %v", err)
+			serverError <- err
 		}
 	}()
 
 	// Wait for server to start
-	time.Sleep(100 * time.Millisecond)
+	time.Sleep(200 * time.Millisecond)
+
+	// Check for server errors
+	select {
+	case err := <-serverError:
+		t.Fatalf("Server failed to start: %v", err)
+	default:
+		// Server started successfully
+	}
 
 	// Get the actual port
+	if server.listener == nil {
+		t.Fatal("Server listener is nil after start")
+	}
 	addr := server.listener.Addr().String()
 	baseURL := fmt.Sprintf("http://%s", addr)
 
