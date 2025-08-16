@@ -14,7 +14,8 @@ func NewTestCommand() *cobra.Command {
 		Short: "Test the mail server configuration",
 		Long:  `Run a comprehensive test of the mail server setup including Postfix, API, and email delivery.`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			fmt.Println("Running mail server tests...\n")
+			fmt.Println("Running mail server tests...")
+			fmt.Println()
 
 			// Load configuration
 			cfg, err := config.Load()
