@@ -64,15 +64,16 @@ func runQuickstart(cmd *cobra.Command, args []string) error {
 		// Read existing configuration
 		existingData, err := os.ReadFile(configPath)
 		if err == nil {
-			yaml.Unmarshal(existingData, &config)
-			if token, ok := config["bearer_token"].(string); ok {
-				bearerToken = token
-			}
-			if dom, ok := config["primary_domain"].(string); ok && domain == "" {
-				domain = dom
-			}
-			if tok, ok := config["do_api_token"].(string); ok && quickstartToken == "" {
-				doToken = tok
+			if err := yaml.Unmarshal(existingData, &config); err == nil {
+				if token, ok := config["bearer_token"].(string); ok {
+					bearerToken = token
+				}
+				if dom, ok := config["primary_domain"].(string); ok && domain == "" {
+					domain = dom
+				}
+				if tok, ok := config["do_api_token"].(string); ok && quickstartToken == "" {
+					doToken = tok
+				}
 			}
 		}
 	} else {
@@ -241,8 +242,14 @@ WantedBy=multi-user.target
 	}
 
 	// Start service
-	exec.Command("systemctl", "daemon-reload").Run()
-	exec.Command("systemctl", "enable", "gomail").Run()
+	if err := exec.Command("systemctl", "daemon-reload").Run(); err != nil {
+		// Non-critical, continue
+		fmt.Printf("Warning: daemon-reload failed: %v\n", err)
+	}
+	if err := exec.Command("systemctl", "enable", "gomail").Run(); err != nil {
+		// Non-critical, continue
+		fmt.Printf("Warning: enable service failed: %v\n", err)
+	}
 	if err := exec.Command("systemctl", "start", "gomail").Run(); err != nil {
 		return fmt.Errorf("failed to start service: %w", err)
 	}
