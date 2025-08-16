@@ -147,26 +147,32 @@ func (v *EmailValidator) Validate(email *mail.EmailData) error {
 }
 ```
 
-### 1.4 Structured Logging (2 days)
+### 1.4 Structured Logging (2 days) ✅ COMPLETED
+
+**Status:** ✅ Implemented on 2025-08-16
+
+**Implementation:**
+- Created centralized logger in `internal/logging/logger.go`
+- Replaced all `log.Printf` statements with structured logging
+- Added environment variable configuration for log level and output
+- Integrated request ID tracking into log context
+- Added 96.6% test coverage for logging module
 
 ```go
-// internal/logger/logger.go
-package logger
+// internal/logging/logger.go
+package logging
 
 import "go.uber.org/zap"
 
-var log *zap.SugaredLogger
+var logger *zap.SugaredLogger
 
-func Init(level string) {
-    config := zap.NewProductionConfig()
-    config.Level = zap.NewAtomicLevelAt(parseLevel(level))
-    
-    logger, _ := config.Build()
-    log = logger.Sugar()
+func InitLogger(mode string) {
+    // Production or development mode configuration
+    // Supports MAIL_LOG_LEVEL and MAIL_LOG_FILE env vars
 }
 
-func Info(msg string, keysAndValues ...interface{}) {
-    log.Infow(msg, keysAndValues...)
+func WithRequestID(requestID string) *zap.SugaredLogger {
+    return logger.With("request_id", requestID)
 }
 ```
 

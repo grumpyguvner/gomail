@@ -2,10 +2,10 @@ package commands
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/grumpyguvner/gomail/internal/config"
+	"github.com/grumpyguvner/gomail/internal/logging"
 	"github.com/grumpyguvner/gomail/internal/postfix"
 	"github.com/spf13/cobra"
 )
@@ -52,29 +52,30 @@ func newDomainAddCommand() *cobra.Command {
 				return fmt.Errorf("failed to add domain: %w", err)
 			}
 
-			log.Printf("✓ Domain %s added to Postfix configuration", domain)
+			logger := logging.Get()
+			logger.Infof("✓ Domain %s added to Postfix configuration", domain)
 
 			// Configure DNS if requested and token available
 			if configureDNS && cfg.DOAPIToken != "" {
-				log.Printf("Configuring DNS records for %s...", domain)
+				logger.Infof("Configuring DNS records for %s...", domain)
 				// DNS configuration will be implemented in dns.go
-				log.Printf("✓ DNS records configured for %s", domain)
+				logger.Infof("✓ DNS records configured for %s", domain)
 			}
 
 			// Reload Postfix
 			if err := manager.ReloadPostfix(); err != nil {
-				log.Printf("Warning: failed to reload Postfix: %v", err)
-				log.Println("Please run: systemctl reload postfix")
+				logger.Warnf("Warning: failed to reload Postfix: %v", err)
+				logger.Info("Please run: systemctl reload postfix")
 			} else {
-				log.Println("✓ Postfix reloaded")
+				logger.Info("✓ Postfix reloaded")
 			}
 
-			log.Printf("\nDomain %s is now configured to receive email", domain)
+			logger.Infof("\nDomain %s is now configured to receive email", domain)
 
 			if !configureDNS {
-				log.Println("\nDon't forget to configure DNS records:")
-				log.Printf("  MX: %s -> %s (priority 10)", domain, cfg.MailHostname)
-				log.Printf("  A:  %s -> your-server-ip", cfg.MailHostname)
+				logger.Info("\nDon't forget to configure DNS records:")
+				logger.Infof("  MX: %s -> %s (priority 10)", domain, cfg.MailHostname)
+				logger.Infof("  A:  %s -> your-server-ip", cfg.MailHostname)
 			}
 
 			return nil
@@ -111,18 +112,19 @@ func newDomainRemoveCommand() *cobra.Command {
 				return fmt.Errorf("failed to remove domain: %w", err)
 			}
 
-			log.Printf("✓ Domain %s removed from Postfix configuration", domain)
+			logger := logging.Get()
+			logger.Infof("✓ Domain %s removed from Postfix configuration", domain)
 
 			// Reload Postfix
 			if err := manager.ReloadPostfix(); err != nil {
-				log.Printf("Warning: failed to reload Postfix: %v", err)
-				log.Println("Please run: systemctl reload postfix")
+				logger.Warnf("Warning: failed to reload Postfix: %v", err)
+				logger.Info("Please run: systemctl reload postfix")
 			} else {
-				log.Println("✓ Postfix reloaded")
+				logger.Info("✓ Postfix reloaded")
 			}
 
-			log.Printf("\nDomain %s will no longer receive email", domain)
-			log.Println("Note: DNS records were not removed. Remove them manually if needed.")
+			logger.Infof("\nDomain %s will no longer receive email", domain)
+			logger.Info("Note: DNS records were not removed. Remove them manually if needed.")
 
 			return nil
 		},

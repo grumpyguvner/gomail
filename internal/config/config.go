@@ -51,6 +51,16 @@ func Load() (*Config, error) {
 	viper.SetEnvPrefix("MAIL")
 	viper.AutomaticEnv()
 
+	// Explicitly bind environment variables to config keys
+	_ = viper.BindEnv("port", "MAIL_PORT")
+	_ = viper.BindEnv("mode", "MAIL_MODE")
+	_ = viper.BindEnv("data_dir", "MAIL_DATA_DIR")
+	_ = viper.BindEnv("bearer_token", "MAIL_BEARER_TOKEN")
+	_ = viper.BindEnv("primary_domain", "MAIL_PRIMARY_DOMAIN")
+	_ = viper.BindEnv("mail_hostname", "MAIL_MAIL_HOSTNAME")
+	_ = viper.BindEnv("api_endpoint", "MAIL_API_ENDPOINT")
+	_ = viper.BindEnv("do_api_token", "MAIL_DO_API_TOKEN")
+
 	// Also check old environment variable names for compatibility
 	if token := os.Getenv("API_BEARER_TOKEN"); token != "" {
 		viper.Set("bearer_token", token)
@@ -70,12 +80,18 @@ func Load() (*Config, error) {
 
 	// Try to load config file if not explicitly set to /dev/null
 	configFile := viper.GetString("config")
-	if configFile != "/dev/null" && configFile != "" {
-		viper.SetConfigName("mailserver")
-		viper.SetConfigType("yaml")
-		viper.AddConfigPath(".")
-		viper.AddConfigPath("/etc/mailserver")
-		viper.AddConfigPath("$HOME/.mailserver")
+	if configFile != "/dev/null" {
+		if configFile != "" {
+			// Specific config file provided
+			viper.SetConfigFile(configFile)
+		} else {
+			// Look for config in standard locations
+			viper.SetConfigName("mailserver")
+			viper.SetConfigType("yaml")
+			viper.AddConfigPath(".")
+			viper.AddConfigPath("/etc/mailserver")
+			viper.AddConfigPath("$HOME/.mailserver")
+		}
 
 		if err := viper.ReadInConfig(); err != nil {
 			// It's okay if config file doesn't exist

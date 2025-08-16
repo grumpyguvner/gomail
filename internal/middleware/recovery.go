@@ -2,9 +2,10 @@ package middleware
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"runtime/debug"
+
+	"github.com/grumpyguvner/gomail/internal/logging"
 )
 
 // RecoveryMiddleware handles panics and recovers gracefully
@@ -14,27 +15,42 @@ func RecoveryMiddleware(next http.Handler) http.Handler {
 			if err := recover(); err != nil {
 				// Log the panic with stack trace
 				stack := debug.Stack()
-				log.Printf("PANIC recovered: %v\nRequest: %s %s\nStack trace:\n%s",
-					err, r.Method, r.URL.Path, stack)
+				logger := logging.Get()
 
-				// Get request ID if available
-				requestID := r.Context().Value(RequestIDKey)
-				if requestID != nil {
-					log.Printf("Request ID: %v", requestID)
+				// Try to get request ID from response header first (set by RequestIDMiddleware)
+				// This works even when RecoveryMiddleware wraps RequestIDMiddleware
+				var reqIDStr string
+				if reqID := w.Header().Get(RequestIDHeader); reqID != "" {
+					reqIDStr = reqID
+					logger = logging.WithRequestID(reqIDStr)
+				} else {
+					// Fallback to context (for when RecoveryMiddleware is inside RequestIDMiddleware)
+					if requestID := r.Context().Value(RequestIDKey); requestID != nil {
+						if s, ok := requestID.(string); ok {
+							reqIDStr = s
+							logger = logging.WithRequestID(reqIDStr)
+						}
+					}
 				}
+
+				logger.Errorw("PANIC recovered",
+					"error", err,
+					"method", r.Method,
+					"path", r.URL.Path,
+					"stack_trace", string(stack))
 
 				// Return a generic error response
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusInternalServerError)
 
 				response := `{"error":"Internal Server Error","message":"An unexpected error occurred"}`
-				if requestID != nil {
-					response = fmt.Sprintf(`{"error":"Internal Server Error","message":"An unexpected error occurred","request_id":"%v"}`, requestID)
+				if reqIDStr != "" {
+					response = fmt.Sprintf(`{"error":"Internal Server Error","message":"An unexpected error occurred","request_id":"%s"}`, reqIDStr)
 				}
 
 				_, writeErr := w.Write([]byte(response))
 				if writeErr != nil {
-					log.Printf("Failed to write error response: %v", writeErr)
+					logger.Errorf("Failed to write error response: %v", writeErr)
 				}
 			}
 		}()

@@ -3,7 +3,6 @@ package commands
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/grumpyguvner/gomail/internal/api"
 	"github.com/grumpyguvner/gomail/internal/config"
+	"github.com/grumpyguvner/gomail/internal/logging"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -73,12 +73,12 @@ func NewServerCommand() *cobra.Command {
 
 			go func() {
 				<-sigChan
-				log.Println("Shutdown signal received, stopping server...")
+				logging.Get().Info("Shutdown signal received, stopping server...")
 				cancel()
 			}()
 
 			// Start server
-			log.Printf("Starting mail API server on port %d (mode: %s)", cfg.Port, cfg.Mode)
+			logging.Get().Infof("Starting mail API server on port %d (mode: %s)", cfg.Port, cfg.Mode)
 			if err := server.Start(ctx); err != nil {
 				return fmt.Errorf("server error: %w", err)
 			}
@@ -94,7 +94,7 @@ func NewServerCommand() *cobra.Command {
 				return fmt.Errorf("shutdown error: %w", err)
 			}
 
-			log.Println("Server stopped gracefully")
+			logging.Get().Info("Server stopped gracefully")
 			return nil
 		},
 	}

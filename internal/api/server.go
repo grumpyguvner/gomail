@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"os"
@@ -15,6 +14,7 @@ import (
 	"time"
 
 	"github.com/grumpyguvner/gomail/internal/config"
+	"github.com/grumpyguvner/gomail/internal/logging"
 	"github.com/grumpyguvner/gomail/internal/mail"
 	"github.com/grumpyguvner/gomail/internal/middleware"
 	"github.com/grumpyguvner/gomail/internal/storage"
@@ -104,7 +104,7 @@ func (s *Server) Start(ctx context.Context) error {
 	// Start serving
 	go func() {
 		if err := s.httpServer.Serve(s.listener); err != nil && err != http.ErrServerClosed {
-			log.Printf("Server error: %v", err)
+			logging.Get().Errorf("Server error: %v", err)
 		}
 	}()
 
@@ -193,7 +193,7 @@ func (s *Server) handleMailInbound(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		requestID := middleware.GetRequestIDFromRequest(r)
-		log.Printf("Failed to parse email (request_id=%s): %v", requestID, err)
+		logging.WithRequestID(requestID).Errorf("Failed to parse email: %v", err)
 		http.Error(w, "Failed to parse email", http.StatusBadRequest)
 		return
 	}
@@ -201,7 +201,7 @@ func (s *Server) handleMailInbound(w http.ResponseWriter, r *http.Request) {
 	// Validate email data
 	if err := s.validator.Validate(emailData); err != nil {
 		requestID := middleware.GetRequestIDFromRequest(r)
-		log.Printf("Email validation failed (request_id=%s): %v", requestID, err)
+		logging.WithRequestID(requestID).Errorf("Email validation failed: %v", err)
 		http.Error(w, fmt.Sprintf("Email validation failed: %v", err), http.StatusBadRequest)
 		return
 	}
@@ -209,7 +209,8 @@ func (s *Server) handleMailInbound(w http.ResponseWriter, r *http.Request) {
 	// Store email
 	filename, err := s.storage.Store(emailData)
 	if err != nil {
-		log.Printf("Failed to store email: %v", err)
+		requestID := middleware.GetRequestIDFromRequest(r)
+		logging.WithRequestID(requestID).Errorf("Failed to store email: %v", err)
 		http.Error(w, "Failed to store email", http.StatusInternalServerError)
 		return
 	}
@@ -229,12 +230,16 @@ func (s *Server) handleMailInbound(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		log.Printf("Failed to encode response: %v", err)
+		requestID := middleware.GetRequestIDFromRequest(r)
+		logging.WithRequestID(requestID).Errorf("Failed to encode response: %v", err)
 	}
 
 	requestID := middleware.GetRequestIDFromRequest(r)
-	log.Printf("Email received: request_id=%s from=%s to=%s size=%d stored=%s",
-		requestID, emailData.Sender, emailData.Recipient, len(body), filename)
+	logging.WithRequestID(requestID).Infow("Email received",
+		"from", emailData.Sender,
+		"to", emailData.Recipient,
+		"size", len(body),
+		"stored", filename)
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -246,7 +251,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		log.Printf("Failed to encode response: %v", err)
+		logging.Get().Errorf("Failed to encode response: %v", err)
 	}
 }
 
@@ -266,7 +271,7 @@ func (s *Server) handleMetrics(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(response); err != nil {
-		log.Printf("Failed to encode response: %v", err)
+		logging.Get().Errorf("Failed to encode response: %v", err)
 	}
 }
 

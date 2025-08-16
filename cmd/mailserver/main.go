@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/grumpyguvner/gomail/internal/commands"
+	"github.com/grumpyguvner/gomail/internal/logging"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -64,6 +65,16 @@ func initConfig() {
 			fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
 		}
 	}
+
+	// Initialize logger based on mode
+	mode := viper.GetString("mode")
+	if mode == "" {
+		mode = "production"
+	}
+	if verbosity > 1 || os.Getenv("DEBUG") == "true" {
+		mode = "development"
+	}
+	logging.InitLogger(mode)
 }
 
 func main() {
@@ -71,4 +82,6 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+	// Sync logger on exit
+	logging.Sync()
 }

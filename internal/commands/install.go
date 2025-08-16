@@ -2,11 +2,11 @@ package commands
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 
 	"github.com/grumpyguvner/gomail/internal/config"
+	"github.com/grumpyguvner/gomail/internal/logging"
 	"github.com/grumpyguvner/gomail/internal/postfix"
 	"github.com/spf13/cobra"
 )
@@ -29,7 +29,8 @@ the API service, and DNS configuration.`,
 				return fmt.Errorf("this command must be run as root")
 			}
 
-			log.Println("Starting mail server installation...")
+			logger := logging.Get()
+			logger.Info("Starting mail server installation...")
 
 			// Load configuration
 			cfg, err := config.Load()
@@ -38,52 +39,52 @@ the API service, and DNS configuration.`,
 			}
 
 			// Update system packages
-			log.Println("Updating system packages...")
+			logger.Info("Updating system packages...")
 			if err := updateSystem(); err != nil {
-				log.Printf("Warning: failed to update system: %v", err)
+				logger.Warnf("Warning: failed to update system: %v", err)
 			}
 
 			// Install Postfix
 			if !skipPostfix {
-				log.Println("Installing and configuring Postfix...")
-				log.Printf("  Mail hostname: %s", cfg.MailHostname)
-				log.Printf("  Primary domain: %s", cfg.PrimaryDomain)
+				logger.Info("Installing and configuring Postfix...")
+				logger.Infof("  Mail hostname: %s", cfg.MailHostname)
+				logger.Infof("  Primary domain: %s", cfg.PrimaryDomain)
 
 				installer := postfix.NewInstaller(cfg)
 				if err := installer.Install(); err != nil {
 					return fmt.Errorf("failed to install Postfix: %w", err)
 				}
-				log.Println("✓ Postfix installed and configured")
+				logger.Info("✓ Postfix installed and configured")
 			}
 
 			// Install API service
 			if !skipAPI {
-				log.Println("Installing mail API service...")
+				logger.Info("Installing mail API service...")
 				if err := installAPIService(cfg); err != nil {
 					return fmt.Errorf("failed to install API service: %w", err)
 				}
-				log.Println("✓ Mail API service installed")
+				logger.Info("✓ Mail API service installed")
 			}
 
 			// Configure DNS if token is available
 			if !skipDNS && cfg.DOAPIToken != "" {
-				log.Println("Configuring DNS records...")
+				logger.Info("Configuring DNS records...")
 				// DNS configuration will be implemented in dns.go
-				log.Println("✓ DNS records configured")
+				logger.Info("✓ DNS records configured")
 			}
 
 			// Save configuration
 			configPath := "/etc/mailserver/mailserver.yaml"
 			if err := cfg.Save(configPath); err != nil {
-				log.Printf("Warning: failed to save config to %s: %v", configPath, err)
+				logger.Warnf("Warning: failed to save config to %s: %v", configPath, err)
 			}
 
-			log.Println("Installation complete!")
-			log.Println("\nNext steps:")
-			log.Println("1. Configure your DNS records (if not using DigitalOcean)")
-			log.Println("2. Add domains: mailserver domain add example.com")
-			log.Println("3. Test the system: mailserver test")
-			log.Println("4. Start the server: mailserver server")
+			logger.Info("Installation complete!")
+			logger.Info("\nNext steps:")
+			logger.Info("1. Configure your DNS records (if not using DigitalOcean)")
+			logger.Info("2. Add domains: mailserver domain add example.com")
+			logger.Info("3. Test the system: mailserver test")
+			logger.Info("4. Start the server: mailserver server")
 
 			return nil
 		},
@@ -121,12 +122,12 @@ func installAPIService(cfg *config.Config) error {
 		if err := os.WriteFile(targetBinary, source, 0755); err != nil {
 			return fmt.Errorf("failed to install binary: %w", err)
 		}
-		log.Printf("Installed binary to %s", targetBinary)
+		logging.Get().Infof("Installed binary to %s", targetBinary)
 	}
 
 	// Create service user
 	if err := createServiceUser(); err != nil {
-		log.Printf("Warning: failed to create service user: %v", err)
+		logging.Get().Warnf("Warning: failed to create service user: %v", err)
 	}
 
 	// Create data directories with correct ownership
@@ -137,7 +138,7 @@ func installAPIService(cfg *config.Config) error {
 	// Set ownership to mailserver user
 	cmd := exec.Command("chown", "-R", "mailserver:mailserver", cfg.DataDir)
 	if err := cmd.Run(); err != nil {
-		log.Printf("Warning: failed to set data directory ownership: %v", err)
+		logging.Get().Warnf("Warning: failed to set data directory ownership: %v", err)
 	}
 
 	// Install systemd service
