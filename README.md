@@ -20,8 +20,14 @@ A high-performance mail server solution that combines Postfix SMTP with HTTP API
 ### One-Line Installation
 
 ```bash
-# Install everything with one command (replace example.com with your domain)
+# Basic installation (will prompt for domain and optional DigitalOcean token)
+curl -sSL https://github.com/grumpyguvner/gomail/releases/latest/download/quickinstall.sh | sudo bash
+
+# With domain specified
 curl -sSL https://github.com/grumpyguvner/gomail/releases/latest/download/quickinstall.sh | sudo bash -s example.com
+
+# With domain and DigitalOcean token for automatic DNS setup
+curl -sSL https://github.com/grumpyguvner/gomail/releases/latest/download/quickinstall.sh | sudo bash -s example.com --token YOUR_DO_TOKEN
 ```
 
 That's it! GoMail is now installed and running. The installer:
@@ -29,7 +35,9 @@ That's it! GoMail is now installed and running. The installer:
 - ✅ Generates secure configuration automatically
 - ✅ Installs and configures Postfix
 - ✅ Sets up your domain
+- ✅ Configures DigitalOcean DNS (if token provided)
 - ✅ Starts the service
+- ✅ Detects fresh install vs reinstall
 
 ### Manual Installation
 
@@ -39,8 +47,11 @@ wget https://github.com/grumpyguvner/gomail/releases/latest/download/gomail-linu
 chmod +x gomail-linux-amd64
 sudo mv gomail-linux-amd64 /usr/local/bin/gomail
 
-# Run automatic setup (will prompt for domain)
+# Interactive setup (prompts for domain and optional DigitalOcean token)
 sudo gomail quickstart
+
+# Or with parameters
+sudo gomail quickstart example.com --token YOUR_DO_TOKEN
 ```
 
 ## Architecture

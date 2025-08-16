@@ -13,8 +13,13 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+var (
+	quickstartDomain string
+	quickstartToken  string
+)
+
 var quickstartCmd = &cobra.Command{
-	Use:   "quickstart",
+	Use:   "quickstart [domain]",
 	Short: "Quick setup wizard for GoMail",
 	Long: `Interactive setup wizard that configures everything automatically.
 This command will:
@@ -22,12 +27,15 @@ This command will:
   - Install Postfix and dependencies
   - Configure your domain
   - Set up the systemd service
-  - Start the mail server`,
+  - Start the mail server
+  - Configure DigitalOcean DNS (if token provided)`,
+	Args: cobra.MaximumNArgs(1),
 	RunE: runQuickstart,
 }
 
 func init() {
 	rootCmd.AddCommand(quickstartCmd)
+	quickstartCmd.Flags().StringVarP(&quickstartToken, "token", "t", "", "DigitalOcean API token for DNS configuration")
 }
 
 func runQuickstart(cmd *cobra.Command, args []string) error {
@@ -41,32 +49,88 @@ func runQuickstart(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("quickstart must be run as root (use sudo)")
 	}
 
-	// Get domain from user
-	reader := bufio.NewReader(os.Stdin)
-	fmt.Print("Enter your primary domain (e.g., example.com): ")
-	domain, _ := reader.ReadString('\n')
-	domain = strings.TrimSpace(domain)
-	
-	if domain == "" {
-		// Try to get hostname as default
-		hostname, _ := os.Hostname()
-		if hostname != "" {
-			domain = hostname
-			fmt.Printf("Using hostname as domain: %s\n", domain)
-		} else {
-			return fmt.Errorf("domain is required")
+	configPath := "/etc/gomail.yaml"
+	var config map[string]interface{}
+	var bearerToken string
+	var domain string
+	var doToken string
+	isFreshInstall := true
+
+	// Check if configuration already exists
+	if _, err := os.Stat(configPath); err == nil {
+		isFreshInstall = false
+		fmt.Printf("📋 Existing configuration detected at %s\n", configPath)
+		
+		// Read existing configuration
+		existingData, err := os.ReadFile(configPath)
+		if err == nil {
+			yaml.Unmarshal(existingData, &config)
+			if token, ok := config["bearer_token"].(string); ok {
+				bearerToken = token
+			}
+			if dom, ok := config["primary_domain"].(string); ok && domain == "" {
+				domain = dom
+			}
+			if tok, ok := config["do_api_token"].(string); ok && quickstartToken == "" {
+				doToken = tok
+			}
 		}
+	} else {
+		fmt.Println("🆕 Fresh installation detected")
 	}
 
-	// Generate secure bearer token
-	tokenBytes := make([]byte, 32)
-	if _, err := rand.Read(tokenBytes); err != nil {
-		return fmt.Errorf("failed to generate token: %w", err)
+	// Get domain from args or existing config
+	if len(args) > 0 {
+		domain = args[0]
+	} else if quickstartDomain != "" {
+		domain = quickstartDomain
 	}
-	bearerToken := base64.StdEncoding.EncodeToString(tokenBytes)
+
+	// Get DO token from flag or existing config
+	if quickstartToken != "" {
+		doToken = quickstartToken
+	}
+
+	reader := bufio.NewReader(os.Stdin)
+
+	// For fresh installs, prompt for missing values
+	if isFreshInstall {
+		// Prompt for domain if not provided
+		if domain == "" {
+			fmt.Print("Enter your primary domain (e.g., example.com): ")
+			input, _ := reader.ReadString('\n')
+			domain = strings.TrimSpace(input)
+			
+			if domain == "" {
+				hostname, _ := os.Hostname()
+				if hostname != "" {
+					domain = hostname
+					fmt.Printf("Using hostname as domain: %s\n", domain)
+				} else {
+					return fmt.Errorf("domain is required")
+				}
+			}
+		}
+
+		// Prompt for DigitalOcean token if not provided
+		if doToken == "" {
+			fmt.Println()
+			fmt.Println("📌 DigitalOcean API token enables automatic DNS configuration")
+			fmt.Print("Enter your DigitalOcean API token (or press Enter to skip): ")
+			input, _ := reader.ReadString('\n')
+			doToken = strings.TrimSpace(input)
+		}
+
+		// Generate secure bearer token for fresh install
+		tokenBytes := make([]byte, 32)
+		if _, err := rand.Read(tokenBytes); err != nil {
+			return fmt.Errorf("failed to generate token: %w", err)
+		}
+		bearerToken = base64.StdEncoding.EncodeToString(tokenBytes)
+	}
 
 	// Create configuration
-	config := map[string]interface{}{
+	config = map[string]interface{}{
 		"port":           3000,
 		"mode":           "simple",
 		"data_dir":       "/opt/gomail/data",
@@ -76,8 +140,12 @@ func runQuickstart(cmd *cobra.Command, args []string) error {
 		"api_endpoint":   "http://localhost:3000/mail/inbound",
 	}
 
+	// Add DO token if provided
+	if doToken != "" {
+		config["do_api_token"] = doToken
+	}
+
 	// Write configuration file
-	configPath := "/etc/gomail.yaml"
 	fmt.Printf("\n📝 Writing configuration to %s...\n", configPath)
 	
 	configData, err := yaml.Marshal(config)
@@ -88,7 +156,11 @@ func runQuickstart(cmd *cobra.Command, args []string) error {
 	if err := os.WriteFile(configPath, configData, 0600); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}
-	fmt.Println("✅ Configuration created")
+	if isFreshInstall {
+		fmt.Println("✅ Configuration created")
+	} else {
+		fmt.Println("✅ Configuration updated")
+	}
 
 	// Run installation
 	fmt.Println("\n🚀 Installing mail server components...")
@@ -101,7 +173,7 @@ func runQuickstart(cmd *cobra.Command, args []string) error {
 	fmt.Println("✅ Mail server installed")
 
 	// Add domain
-	fmt.Printf("\n🌐 Adding domain %s...\n", domain)
+	fmt.Printf("\n🌐 Configuring domain %s...\n", domain)
 	domainCmd := exec.Command("/usr/local/bin/gomail", "domain", "add", domain, "--config", configPath)
 	domainCmd.Stdout = os.Stdout
 	domainCmd.Stderr = os.Stderr
@@ -109,6 +181,19 @@ func runQuickstart(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to add domain: %w", err)
 	}
 	fmt.Println("✅ Domain configured")
+
+	// Configure DNS if DO token provided
+	if doToken != "" {
+		fmt.Println("\n🔧 Configuring DigitalOcean DNS records...")
+		dnsCmd := exec.Command("/usr/local/bin/gomail", "dns", "create", domain, "--config", configPath)
+		dnsCmd.Stdout = os.Stdout
+		dnsCmd.Stderr = os.Stderr
+		if err := dnsCmd.Run(); err != nil {
+			fmt.Println("⚠️  DNS configuration failed - configure manually")
+		} else {
+			fmt.Println("✅ DNS records created")
+		}
+	}
 
 	// Create systemd service
 	fmt.Println("\n⚙️  Setting up systemd service...")
@@ -170,16 +255,27 @@ WantedBy=multi-user.target
 	fmt.Println("╚══════════════════════════════════════════════════════════════╝")
 	fmt.Println()
 	fmt.Printf("📋 Configuration saved to: %s\n", configPath)
-	fmt.Printf("🔑 Bearer token: %s\n", bearerToken)
+	if isFreshInstall {
+		fmt.Printf("🔑 Bearer token: %s\n", bearerToken)
+	}
 	fmt.Printf("🌐 Primary domain: %s\n", domain)
 	fmt.Printf("📮 API endpoint: http://localhost:3000/mail/inbound\n")
+	if doToken != "" {
+		fmt.Println("☁️  DigitalOcean: Configured")
+	}
 	fmt.Println()
 	fmt.Println("📝 Next steps:")
-	fmt.Printf("   1. Configure DNS: gomail dns show %s\n", domain)
+	if doToken == "" {
+		fmt.Printf("   1. Configure DNS: gomail dns show %s\n", domain)
+	} else {
+		fmt.Printf("   1. Verify DNS: gomail dns show %s\n", domain)
+	}
 	fmt.Println("   2. Test delivery: gomail test")
 	fmt.Println("   3. View logs: journalctl -u gomail -f")
-	fmt.Println()
-	fmt.Println("🔐 IMPORTANT: Save your bearer token securely!")
+	if isFreshInstall {
+		fmt.Println()
+		fmt.Println("🔐 IMPORTANT: Save your bearer token securely!")
+	}
 	
 	return nil
 }
