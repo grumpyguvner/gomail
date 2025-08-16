@@ -38,8 +38,19 @@ test:
 
 # Run linter (requires golangci-lint)
 lint:
-	@which golangci-lint > /dev/null || (echo "Installing golangci-lint..." && go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest)
-	golangci-lint run --timeout=5m ./...
+	@if ! which golangci-lint > /dev/null 2>&1; then \
+		if [ -f $(HOME)/go/bin/golangci-lint ]; then \
+			echo "Using golangci-lint from ~/go/bin"; \
+		else \
+			echo "Installing golangci-lint..."; \
+			go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest; \
+		fi \
+	fi
+	@if which golangci-lint > /dev/null 2>&1; then \
+		golangci-lint run --timeout=5m ./...; \
+	else \
+		$(HOME)/go/bin/golangci-lint run --timeout=5m ./...; \
+	fi
 
 # Format code
 fmt:
@@ -105,17 +116,20 @@ release-prep: check
 		exit 1; \
 	fi
 	@echo "Building release binaries for version $(VERSION)..."
-	mkdir -p $(BUILD_DIR)/release
-	# Build all platforms with version injection
-	GOOS=linux GOARCH=amd64 $(GOBUILD) -ldflags "-X main.version=$(VERSION)" -o $(BUILD_DIR)/release/$(BINARY_NAME)-linux-amd64 ./cmd/mailserver
-	GOOS=linux GOARCH=arm64 $(GOBUILD) -ldflags "-X main.version=$(VERSION)" -o $(BUILD_DIR)/release/$(BINARY_NAME)-linux-arm64 ./cmd/mailserver
-	GOOS=darwin GOARCH=amd64 $(GOBUILD) -ldflags "-X main.version=$(VERSION)" -o $(BUILD_DIR)/release/$(BINARY_NAME)-darwin-amd64 ./cmd/mailserver
-	GOOS=darwin GOARCH=arm64 $(GOBUILD) -ldflags "-X main.version=$(VERSION)" -o $(BUILD_DIR)/release/$(BINARY_NAME)-darwin-arm64 ./cmd/mailserver
-	# Create checksums
-	cd $(BUILD_DIR)/release && sha256sum $(BINARY_NAME)-* > checksums.txt
-	# Copy installation scripts
-	cp scripts/quickinstall.sh $(BUILD_DIR)/release/
-	cp example.mailserver.yaml $(BUILD_DIR)/release/
+	@mkdir -p $(BUILD_DIR)/release
+	@echo "  • Building linux-amd64..."
+	@GOOS=linux GOARCH=amd64 $(GOBUILD) -ldflags "-X main.version=$(VERSION)" -o $(BUILD_DIR)/release/$(BINARY_NAME)-linux-amd64 ./cmd/mailserver
+	@echo "  • Building linux-arm64..."
+	@GOOS=linux GOARCH=arm64 $(GOBUILD) -ldflags "-X main.version=$(VERSION)" -o $(BUILD_DIR)/release/$(BINARY_NAME)-linux-arm64 ./cmd/mailserver
+	@echo "  • Building darwin-amd64..."
+	@GOOS=darwin GOARCH=amd64 $(GOBUILD) -ldflags "-X main.version=$(VERSION)" -o $(BUILD_DIR)/release/$(BINARY_NAME)-darwin-amd64 ./cmd/mailserver
+	@echo "  • Building darwin-arm64..."
+	@GOOS=darwin GOARCH=arm64 $(GOBUILD) -ldflags "-X main.version=$(VERSION)" -o $(BUILD_DIR)/release/$(BINARY_NAME)-darwin-arm64 ./cmd/mailserver
+	@echo "  • Creating checksums..."
+	@cd $(BUILD_DIR)/release && sha256sum $(BINARY_NAME)-* > checksums.txt
+	@echo "  • Copying installation scripts..."
+	@cp scripts/quickinstall.sh $(BUILD_DIR)/release/
+	@cp example.mailserver.yaml $(BUILD_DIR)/release/
 	@echo "✓ Release artifacts created in $(BUILD_DIR)/release/"
 	@echo "✓ Ready to tag and push: git tag $(VERSION) && git push origin $(VERSION)"
 
@@ -138,6 +152,11 @@ release-tag:
 	@echo "Creating release tag $(VERSION)..."
 	git tag -a $(VERSION) -m "Release $(VERSION)"
 	@echo "✓ Tag created. Push with: git push origin $(VERSION)"
+
+# Quick release (skip full test suite)
+release-quick: fmt-check lint build
+	@echo "Quick release check passed"
+	@$(MAKE) release-prep VERSION=$(VERSION)
 
 # Full release process (local validation)
 release: release-prep
@@ -170,9 +189,10 @@ help:
 	@echo "  make pre-push      - Quick checks before pushing"
 	@echo ""
 	@echo "Release:"
-	@echo "  make release VERSION=v1.0.1  - Full release preparation with checks"
-	@echo "  make release-prep VERSION=v1.0.1  - Prepare release artifacts"
-	@echo "  make release-build VERSION=v1.0.1 - Test release build"
+	@echo "  make release VERSION=v1.0.1       - Full release (all checks + build)"
+	@echo "  make release-quick VERSION=v1.0.1 - Quick release (skip tests)"
+	@echo "  make release-prep VERSION=v1.0.1  - Prepare release artifacts only"
+	@echo "  make release-build VERSION=v1.0.1 - Test single platform build"
 	@echo "  make release-tag VERSION=v1.0.1   - Create release tag"
 	@echo ""
 	@echo "Installation:"
