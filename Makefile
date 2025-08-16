@@ -69,8 +69,57 @@ fmt-check:
 	fi
 	@echo "✓ All files are properly formatted"
 
+# Security scanning with gosec
+sec-gosec:
+	@if ! which gosec > /dev/null 2>&1; then \
+		if [ -f $(HOME)/go/bin/gosec ]; then \
+			echo "Using gosec from ~/go/bin"; \
+		else \
+			echo "Installing gosec..."; \
+			go install github.com/securego/gosec/v2/cmd/gosec@latest; \
+		fi \
+	fi
+	@echo "Running gosec security scan..."
+	@if which gosec > /dev/null 2>&1; then \
+		gosec -fmt json -out gosec-report.json ./... || true; \
+		gosec ./...; \
+	else \
+		$(HOME)/go/bin/gosec -fmt json -out gosec-report.json ./... || true; \
+		$(HOME)/go/bin/gosec ./...; \
+	fi
+
+# Dependency vulnerability scanning with nancy
+sec-nancy:
+	@if ! which nancy > /dev/null 2>&1; then \
+		if [ -f $(HOME)/go/bin/nancy ]; then \
+			echo "Using nancy from ~/go/bin"; \
+		else \
+			echo "Installing nancy..."; \
+			go install github.com/sonatype-nexus-community/nancy@latest; \
+		fi \
+	fi
+	@echo "Running nancy dependency scan..."
+	@go list -json -deps ./... | $(HOME)/go/bin/nancy sleuth
+
+# Container/binary scanning with trivy
+sec-trivy:
+	@if ! which trivy > /dev/null 2>&1; then \
+		if [ -f $(HOME)/go/bin/trivy ]; then \
+			echo "Using trivy from ~/go/bin"; \
+		else \
+			echo "Installing trivy..."; \
+			curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b $(HOME)/go/bin; \
+		fi \
+	fi
+	@echo "Running trivy filesystem scan..."
+	@$(HOME)/go/bin/trivy fs --scanners vuln,misconfig,secret .
+
+# Run all security scans
+security: sec-gosec sec-nancy sec-trivy
+	@echo "✓ All security scans completed!"
+
 # Run all checks (what CI runs)
-check: fmt-check lint test build
+check: fmt-check lint test security build
 	@echo "✓ All checks passed!"
 
 # Quick check before pushing (faster than full check)
@@ -188,8 +237,14 @@ help:
 	@echo "  make lint          - Run golangci-lint"
 	@echo "  make fmt           - Format code"
 	@echo "  make fmt-check     - Check code formatting"
-	@echo "  make check         - Run all CI checks (fmt, lint, test, build)"
+	@echo "  make check         - Run all CI checks (fmt, lint, test, security, build)"
 	@echo "  make pre-push      - Quick checks before pushing"
+	@echo ""
+	@echo "Security:"
+	@echo "  make security      - Run all security scans"
+	@echo "  make sec-gosec     - Run gosec static analysis"
+	@echo "  make sec-nancy     - Run nancy dependency scan"
+	@echo "  make sec-trivy     - Run trivy vulnerability scan"
 	@echo ""
 	@echo "Release:"
 	@echo "  make release VERSION=v1.0.1       - Full release (all checks + build)"
