@@ -12,15 +12,34 @@ This document describes the release process for GoMail.
 
 ### 1. Prepare Release Locally
 
+Choose one of the following options:
+
+#### Option A: Full Release (Recommended)
 ```bash
 # Run all checks and build release artifacts
 make release VERSION=v1.0.1
 
 # This will:
-# - Run all CI checks (fmt, lint, test)
+# - Check code formatting
+# - Run golangci-lint
+# - Run full test suite with race detection
 # - Build binaries for all platforms
 # - Generate checksums
 # - Copy installation scripts
+# - Create release artifacts in build/release/
+```
+
+#### Option B: Quick Release (When confident)
+```bash
+# Skip tests for faster release
+make release-quick VERSION=v1.0.1
+
+# This will:
+# - Check code formatting
+# - Run golangci-lint
+# - Build a test binary
+# - Build all platform binaries
+# - Generate checksums
 # - Create release artifacts in build/release/
 ```
 
@@ -72,11 +91,17 @@ curl -sSL https://github.com/grumpyguvner/gomail/releases/latest/download/quicki
 For experienced maintainers:
 
 ```bash
-# Full release process
+# Full release process with all checks
 make release VERSION=v1.0.2 && git push origin v1.0.2
+
+# Quick release (skip tests)
+make release-quick VERSION=v1.0.2 && git push origin v1.0.2
 
 # Just test the build
 make release-build VERSION=v1.0.2
+
+# Just prepare artifacts without checks
+make release-prep VERSION=v1.0.2
 ```
 
 ## Version Numbering

@@ -1,4 +1,7 @@
-.PHONY: build install clean test run dev
+.PHONY: build install clean test run dev help
+
+# Default target
+all: help
 
 # Build variables
 BINARY_NAME=gomail

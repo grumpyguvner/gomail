@@ -190,29 +190,59 @@ git clone https://github.com/grumpyguvner/gomail.git
 cd gomail
 
 # Download dependencies
-go mod download
+make deps
+
+# Run all checks (recommended before pushing)
+make check
 
 # Build the binary
 make build
-
-# Run tests
-make test
 
 # Install to system
 sudo make install
 ```
 
-### Development
+### Development Workflow
 
 ```bash
-# Run in development mode
-make run
+# Before making changes
+make deps                # Download dependencies
+
+# During development
+make build              # Build the binary
+make run                # Run the server locally
+make test               # Run tests with coverage
+make fmt                # Format code
+make lint               # Run linter
+
+# Before committing
+make check              # Run all CI checks locally
+make pre-push           # Quick validation before pushing
 
 # Build for multiple platforms
-make build-all
+make build-all          # Build for all platforms
+make build-linux        # Build for Linux (amd64 + arm64)
+make build-darwin       # Build for macOS (amd64 + arm64)
 
-# Clean build artifacts
-make clean
+# Clean up
+make clean              # Remove build artifacts
+```
+
+### Release Process
+
+```bash
+# Full release with all checks
+make release VERSION=v1.0.2
+
+# Quick release (skip tests)
+make release-quick VERSION=v1.0.2
+
+# Just build release artifacts
+make release-prep VERSION=v1.0.2
+
+# Create and push tag
+make release-tag VERSION=v1.0.2
+git push origin v1.0.2
 ```
 
 ## Deployment
@@ -299,13 +329,25 @@ ls -la /opt/mailserver/data/inbox/
 
 ## Contributing
 
-We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md).
+We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for detailed instructions.
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+### Quick Start for Contributors
+
+```bash
+# Fork and clone the repository
+git clone https://github.com/YOUR_USERNAME/gomail.git
+cd gomail
+
+# Install dependencies and run checks
+make deps
+make check
+
+# Make your changes and test
+make test
+make pre-push
+
+# Submit your pull request
+```
 
 ## License
 
