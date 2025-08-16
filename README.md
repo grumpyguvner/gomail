@@ -4,6 +4,10 @@ A high-performance mail server solution that combines Postfix SMTP with HTTP API
 
 [![Go Version](https://img.shields.io/badge/Go-1.21%2B-blue)](https://go.dev)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
+[![Status](https://img.shields.io/badge/Status-Pre--Production-orange)](PRODUCTION-READINESS-PLAN.md)
+[![Test Coverage](https://img.shields.io/badge/Coverage-29.4%25-orange)](CHANGELOG.md)
+
+> ⚠️ **IMPORTANT:** GoMail is currently undergoing production readiness improvements and is NOT yet suitable for production use. Sprint 1 of 4 is in progress. See [Production Readiness Plan](PRODUCTION-READINESS-PLAN.md) for our 6-week roadmap to production.
 
 ## Features
 
@@ -14,6 +18,9 @@ A high-performance mail server solution that combines Postfix SMTP with HTTP API
 - 🌐 **Multi-Domain Support** - Handle multiple email domains
 - 🔧 **Zero Configuration** - Works out of the box with sensible defaults
 - 🏗️ **Idempotent Installation** - Safe to run multiple times
+- 🛡️ **Input Validation** - Email validation with configurable rules
+- 🔍 **Request Tracking** - Unique request IDs for debugging
+- 💪 **Panic Recovery** - Automatic recovery from unexpected errors
 
 ## Quick Start
 
@@ -327,9 +334,23 @@ curl http://localhost:3000/health
 ls -la /opt/mailserver/data/inbox/
 ```
 
+## Production Readiness Status
+
+**Current Status:** Pre-production (actively working toward production readiness)
+
+- 📋 [Track sprint progress](CHANGELOG.md) - See checkboxes for completed items
+- 📊 [View audit findings](PRODUCTION-AUDIT-REPORT.md) - Detailed gap analysis
+- 🗺️ [Implementation roadmap](PRODUCTION-READINESS-PLAN.md) - 6-week plan with all details
+
 ## Contributing
 
 We welcome contributions! Please see our [Contributing Guidelines](CONTRIBUTING.md) for detailed instructions.
+
+**Priority Areas for Contributors:**
+1. Writing tests (target: 85% coverage)
+2. Implementing security features from the roadmap
+3. Documentation improvements
+4. Performance optimization
 
 ### Quick Start for Contributors
 

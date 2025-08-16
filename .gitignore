@@ -51,3 +51,4 @@ mailserver.yaml
 
 # Claude IDE
 .claude/
+CLAUDE.md

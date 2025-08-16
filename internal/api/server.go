@@ -16,7 +16,9 @@ import (
 
 	"github.com/grumpyguvner/gomail/internal/config"
 	"github.com/grumpyguvner/gomail/internal/mail"
+	"github.com/grumpyguvner/gomail/internal/middleware"
 	"github.com/grumpyguvner/gomail/internal/storage"
+	"github.com/grumpyguvner/gomail/internal/validation"
 )
 
 type Server struct {
@@ -25,6 +27,7 @@ type Server struct {
 	listener   net.Listener
 	storage    *storage.FileStorage
 	metrics    *Metrics
+	validator  *validation.EmailValidator
 }
 
 type Metrics struct {
@@ -42,8 +45,9 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	}
 
 	s := &Server{
-		config:  cfg,
-		storage: store,
+		config:    cfg,
+		storage:   store,
+		validator: validation.NewEmailValidator(),
 		metrics: &Metrics{
 			StartTime: time.Now(),
 		},
@@ -56,8 +60,11 @@ func NewServer(cfg *config.Config) (*Server, error) {
 	mux.HandleFunc("/health", s.handleHealth)
 	mux.HandleFunc("/metrics", s.handleMetrics)
 
+	// Apply middleware chain
+	handler := s.applyMiddleware(mux)
+
 	s.httpServer = &http.Server{
-		Handler:        mux,
+		Handler:        handler,
 		ReadTimeout:    30 * time.Second,
 		WriteTimeout:   30 * time.Second,
 		IdleTimeout:    60 * time.Second,
@@ -110,6 +117,14 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	return s.httpServer.Shutdown(ctx)
 }
 
+func (s *Server) applyMiddleware(handler http.Handler) http.Handler {
+	// Apply middlewares in reverse order (innermost first)
+	// Request flow: RequestID -> Recovery -> handler
+	handler = middleware.RecoveryMiddleware(handler)
+	handler = middleware.RequestIDMiddleware(handler)
+	return handler
+}
+
 func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
@@ -141,6 +156,9 @@ func (s *Server) handleMailInbound(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Sanitize headers first
+	headers := validation.SanitizeHeaders(extractHeadersFromRequest(r))
+
 	// Determine content type and parse accordingly
 	contentType := r.Header.Get("Content-Type")
 	var emailData *mail.EmailData
@@ -148,7 +166,7 @@ func (s *Server) handleMailInbound(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case strings.Contains(contentType, "message/rfc822"):
 		// Raw email format
-		emailData, err = mail.ParseRawEmail(string(body), extractHeadersFromRequest(r))
+		emailData, err = mail.ParseRawEmail(string(body), headers)
 
 	case strings.Contains(contentType, "application/json"):
 		// JSON format (legacy)
@@ -161,7 +179,7 @@ func (s *Server) handleMailInbound(w http.ResponseWriter, r *http.Request) {
 
 	default:
 		// Try to detect format
-		if body[0] == '{' {
+		if len(body) > 0 && body[0] == '{' {
 			var jsonData map[string]interface{}
 			if err := json.Unmarshal(body, &jsonData); err != nil {
 				http.Error(w, "Invalid request format", http.StatusBadRequest)
@@ -169,13 +187,22 @@ func (s *Server) handleMailInbound(w http.ResponseWriter, r *http.Request) {
 			}
 			emailData = mail.FromJSON(jsonData)
 		} else {
-			emailData, err = mail.ParseRawEmail(string(body), extractHeadersFromRequest(r))
+			emailData, err = mail.ParseRawEmail(string(body), headers)
 		}
 	}
 
 	if err != nil {
-		log.Printf("Failed to parse email: %v", err)
+		requestID := middleware.GetRequestIDFromRequest(r)
+		log.Printf("Failed to parse email (request_id=%s): %v", requestID, err)
 		http.Error(w, "Failed to parse email", http.StatusBadRequest)
+		return
+	}
+
+	// Validate email data
+	if err := s.validator.Validate(emailData); err != nil {
+		requestID := middleware.GetRequestIDFromRequest(r)
+		log.Printf("Email validation failed (request_id=%s): %v", requestID, err)
+		http.Error(w, fmt.Sprintf("Email validation failed: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -205,8 +232,9 @@ func (s *Server) handleMailInbound(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Failed to encode response: %v", err)
 	}
 
-	log.Printf("Email received: from=%s to=%s size=%d stored=%s",
-		emailData.Sender, emailData.Recipient, len(body), filename)
+	requestID := middleware.GetRequestIDFromRequest(r)
+	log.Printf("Email received: request_id=%s from=%s to=%s size=%d stored=%s",
+		requestID, emailData.Sender, emailData.Recipient, len(body), filename)
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
