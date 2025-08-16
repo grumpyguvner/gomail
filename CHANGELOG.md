@@ -39,7 +39,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Configurable via rate_limit_per_minute and rate_limit_burst
   - X-RateLimit headers in responses
   - 100% test coverage for rate limiter
-- [ ] Configuration schema validation
+- [x] Configuration schema validation
+  - JSON schema for configuration structure
+  - Comprehensive field validation (ports, domains, paths, tokens)
+  - New `validate` command to check configuration
+  - Clear error messages for invalid configs
+  - 89.5% test coverage for config package
 - [ ] Graceful shutdown with 30s timeout
 - [ ] Prometheus metrics integration
 - [ ] Error type categorization

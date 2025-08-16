@@ -35,7 +35,7 @@ func TestConfig_Validate(t *testing.T) {
 				DataDir: "/opt/mailserver/data",
 			},
 			wantErr: true,
-			errMsg:  "invalid port number: 0",
+			errMsg:  "port: must be between 1 and 65535, got 0",
 		},
 		{
 			name: "invalid port - too high",
@@ -45,7 +45,7 @@ func TestConfig_Validate(t *testing.T) {
 				DataDir: "/opt/mailserver/data",
 			},
 			wantErr: true,
-			errMsg:  "invalid port number: 70000",
+			errMsg:  "port: must be between 1 and 65535, got 70000",
 		},
 		{
 			name: "invalid mode",
@@ -55,7 +55,7 @@ func TestConfig_Validate(t *testing.T) {
 				DataDir: "/opt/mailserver/data",
 			},
 			wantErr: true,
-			errMsg:  "invalid mode: invalid",
+			errMsg:  "mode: must be one of [simple socket], got 'invalid'",
 		},
 		{
 			name: "empty data_dir",
@@ -65,7 +65,7 @@ func TestConfig_Validate(t *testing.T) {
 				DataDir: "",
 			},
 			wantErr: true,
-			errMsg:  "data_dir cannot be empty",
+			errMsg:  "data_dir: cannot be empty",
 		},
 		{
 			name: "socket mode",
@@ -148,11 +148,11 @@ func TestLoadFromFile(t *testing.T) {
 		Port:          8080,
 		Mode:          "socket",
 		DataDir:       "/custom/data",
-		BearerToken:   "secret-token",
+		BearerToken:   "supersecret1234567890token",
 		PrimaryDomain: "test.com",
 		MailHostname:  "mail.test.com",
 		APIEndpoint:   "http://api.test.com/webhook",
-		DOAPIToken:    "do-token",
+		DOAPIToken:    "dop_v1_1234567890abcdef1234567890abcdef1234567890abcdef1234567890ab",
 	}
 
 	// Save config
@@ -213,7 +213,7 @@ func TestLoadFromFile_InvalidConfig(t *testing.T) {
 	cfg, err := LoadFromFile(configPath)
 	assert.Error(t, err)
 	assert.Nil(t, cfg)
-	assert.Contains(t, err.Error(), "invalid configuration")
+	assert.Contains(t, err.Error(), "port: must be between 1 and 65535")
 }
 
 func TestLoad_Defaults(t *testing.T) {
@@ -263,7 +263,7 @@ func TestLoad_EnvironmentVariables(t *testing.T) {
 	os.Setenv("MAIL_PORT", "8080")
 	os.Setenv("MAIL_MODE", "socket")
 	os.Setenv("MAIL_DATA_DIR", "/custom/data")
-	os.Setenv("MAIL_BEARER_TOKEN", "env-token")
+	os.Setenv("MAIL_BEARER_TOKEN", "env-token-1234567890abcdef")
 	os.Setenv("MAIL_PRIMARY_DOMAIN", "env.example.com")
 	defer func() {
 		os.Unsetenv("MAIL_PORT")
@@ -283,7 +283,7 @@ func TestLoad_EnvironmentVariables(t *testing.T) {
 	assert.Equal(t, 8080, cfg.Port)
 	assert.Equal(t, "socket", cfg.Mode)
 	assert.Equal(t, "/custom/data", cfg.DataDir)
-	assert.Equal(t, "env-token", cfg.BearerToken)
+	assert.Equal(t, "env-token-1234567890abcdef", cfg.BearerToken)
 	assert.Equal(t, "env.example.com", cfg.PrimaryDomain)
 }
 
@@ -293,8 +293,8 @@ func TestLoad_LegacyEnvironmentVariables(t *testing.T) {
 	defer viper.Reset()
 
 	// Set legacy environment variables
-	os.Setenv("API_BEARER_TOKEN", "legacy-token")
-	os.Setenv("DO_API_TOKEN", "legacy-do-token")
+	os.Setenv("API_BEARER_TOKEN", "legacy-token-1234567890abcdef")
+	os.Setenv("DO_API_TOKEN", "dop_v1_legacy1234567890abcdef1234567890abcdef1234567890abcdef")
 	os.Setenv("PRIMARY_DOMAIN", "legacy.example.com")
 	os.Setenv("MAIL_HOSTNAME", "mail.legacy.com")
 	os.Setenv("API_ENDPOINT", "http://legacy.api/webhook")
@@ -313,8 +313,8 @@ func TestLoad_LegacyEnvironmentVariables(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, cfg)
 
-	assert.Equal(t, "legacy-token", cfg.BearerToken)
-	assert.Equal(t, "legacy-do-token", cfg.DOAPIToken)
+	assert.Equal(t, "legacy-token-1234567890abcdef", cfg.BearerToken)
+	assert.Equal(t, "dop_v1_legacy1234567890abcdef1234567890abcdef1234567890abcdef", cfg.DOAPIToken)
 	assert.Equal(t, "legacy.example.com", cfg.PrimaryDomain)
 	assert.Equal(t, "mail.legacy.com", cfg.MailHostname)
 	assert.Equal(t, "http://legacy.api/webhook", cfg.APIEndpoint)
@@ -332,7 +332,7 @@ func TestLoad_ConfigFile(t *testing.T) {
 port: 9000
 mode: socket
 data_dir: /yaml/data
-bearer_token: yaml-token
+bearer_token: yaml-token-1234567890abcdef
 primary_domain: yaml.example.com
 `
 
@@ -358,7 +358,7 @@ primary_domain: yaml.example.com
 	assert.Equal(t, 9000, cfg.Port)
 	assert.Equal(t, "socket", cfg.Mode)
 	assert.Equal(t, "/yaml/data", cfg.DataDir)
-	assert.Equal(t, "yaml-token", cfg.BearerToken)
+	assert.Equal(t, "yaml-token-1234567890abcdef", cfg.BearerToken)
 	assert.Equal(t, "yaml.example.com", cfg.PrimaryDomain)
 }
 
@@ -377,5 +377,5 @@ func TestLoad_InvalidConfig(t *testing.T) {
 	cfg, err := Load()
 	assert.Error(t, err)
 	assert.Nil(t, cfg)
-	assert.Contains(t, err.Error(), "invalid configuration")
+	assert.Contains(t, err.Error(), "port: must be between 1 and 65535")
 }

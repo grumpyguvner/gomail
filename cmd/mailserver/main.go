@@ -39,6 +39,7 @@ func init() {
 	rootCmd.AddCommand(commands.NewSSLCommand())
 	rootCmd.AddCommand(commands.NewTestCommand())
 	rootCmd.AddCommand(commands.NewConfigCommand())
+	rootCmd.AddCommand(commands.ValidateCommand())
 }
 
 func initConfig() {

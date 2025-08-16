@@ -115,28 +115,17 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
-	// Validate configuration
-	if err := cfg.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid configuration: %w", err)
+	// Validate configuration with schema
+	if err := cfg.ValidateSchema(); err != nil {
+		return nil, err
 	}
 
 	return cfg, nil
 }
 
+// Validate performs basic validation (kept for backward compatibility)
 func (c *Config) Validate() error {
-	if c.Port < 1 || c.Port > 65535 {
-		return fmt.Errorf("invalid port number: %d", c.Port)
-	}
-
-	if c.Mode != "simple" && c.Mode != "socket" {
-		return fmt.Errorf("invalid mode: %s (must be 'simple' or 'socket')", c.Mode)
-	}
-
-	if c.DataDir == "" {
-		return fmt.Errorf("data_dir cannot be empty")
-	}
-
-	return nil
+	return c.ValidateSchema()
 }
 
 func (c *Config) Save(path string) error {
@@ -171,8 +160,8 @@ func LoadFromFile(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to unmarshal config: %w", err)
 	}
 
-	if err := cfg.Validate(); err != nil {
-		return nil, fmt.Errorf("invalid configuration: %w", err)
+	if err := cfg.ValidateSchema(); err != nil {
+		return nil, err
 	}
 
 	return &cfg, nil
