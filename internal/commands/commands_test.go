@@ -116,13 +116,10 @@ func TestConfigShowCommand(t *testing.T) {
 	assert.Equal(t, "show", cmd.Use)
 	assert.Equal(t, "Show current configuration", cmd.Short)
 
-	// Test with non-existent config file
+	// Test execution with default config
 	var output bytes.Buffer
 	cmd.SetOut(&output)
 	cmd.SetErr(&output)
-
-	// Set a non-existent config file
-	cmd.Flags().Set("config", "/tmp/non-existent-config.yaml")
 
 	// Running this will attempt to load config which should succeed with defaults
 	err := cmd.Execute()

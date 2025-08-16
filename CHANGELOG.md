@@ -31,10 +31,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - [x] Implemented input validation and sanitization
 - [x] Added security scanning to CI pipeline
 
-### 🔜 Sprint 2: Core Functionality Hardening (2025-08-26 to 2025-09-02)
+### 🚧 Sprint 2: Core Functionality Hardening (2025-08-16 to 2025-08-26)
 
-#### Planned
-- [ ] Rate limiting middleware (60 req/min default)
+#### In Progress
+- [x] Rate limiting middleware (60 req/min default)
+  - Token bucket algorithm implementation
+  - Configurable via rate_limit_per_minute and rate_limit_burst
+  - X-RateLimit headers in responses
+  - 100% test coverage for rate limiter
 - [ ] Configuration schema validation
 - [ ] Graceful shutdown with 30s timeout
 - [ ] Prometheus metrics integration

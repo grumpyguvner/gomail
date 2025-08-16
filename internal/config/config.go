@@ -24,6 +24,10 @@ type Config struct {
 	// API configuration
 	APIEndpoint string `json:"api_endpoint" mapstructure:"api_endpoint"`
 
+	// Rate limiting configuration
+	RateLimitPerMinute int `json:"rate_limit_per_minute" mapstructure:"rate_limit_per_minute"`
+	RateLimitBurst     int `json:"rate_limit_burst" mapstructure:"rate_limit_burst"`
+
 	// DNS configuration
 	DOAPIToken string `json:"do_api_token" mapstructure:"do_api_token"`
 
@@ -42,6 +46,8 @@ func Load() (*Config, error) {
 	viper.SetDefault("data_dir", "/opt/mailserver/data")
 	viper.SetDefault("mail_hostname", "mail.example.com")
 	viper.SetDefault("primary_domain", "example.com")
+	viper.SetDefault("rate_limit_per_minute", 60)
+	viper.SetDefault("rate_limit_burst", 10)
 	viper.SetDefault("api_endpoint", "http://localhost:3000/mail/inbound")
 	viper.SetDefault("postfix_main_cf", "/etc/postfix/main.cf")
 	viper.SetDefault("postfix_virtual_regex", "/etc/postfix/virtual_mailbox_regex")

@@ -119,9 +119,23 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 func (s *Server) applyMiddleware(handler http.Handler) http.Handler {
 	// Apply middlewares in reverse order (innermost first)
-	// Request flow: RequestID -> Recovery -> handler
+	// Request flow: RateLimit -> RequestID -> Recovery -> handler
 	handler = middleware.RecoveryMiddleware(handler)
 	handler = middleware.RequestIDMiddleware(handler)
+
+	// Add rate limiting with configuration
+	rate := s.config.RateLimitPerMinute
+	if rate <= 0 {
+		rate = 60 // Default fallback
+	}
+	burst := s.config.RateLimitBurst
+	if burst <= 0 {
+		burst = 10 // Default fallback
+	}
+
+	rateLimiter := middleware.NewRateLimiter(rate, burst, 5*time.Minute, logging.Get().Desugar())
+	handler = rateLimiter.Middleware(handler)
+
 	return handler
 }
 
