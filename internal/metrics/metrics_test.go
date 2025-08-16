@@ -35,8 +35,8 @@ func TestHTTPMetrics(t *testing.T) {
 	HTTPRequestDuration.WithLabelValues("POST", "/mail/inbound", "200").Observe(0.2)
 	HTTPRequestDuration.WithLabelValues("POST", "/mail/inbound", "400").Observe(0.05)
 
-	// Verify metrics were recorded
-	assert.Equal(t, 2, testutil.CollectAndCount(HTTPRequestDuration, "gomail_http_request_duration_seconds"))
+	// Verify metrics were recorded (3 unique label combinations)
+	assert.Equal(t, 3, testutil.CollectAndCount(HTTPRequestDuration, "gomail_http_request_duration_seconds"))
 
 	// Test HTTPActiveRequests
 	HTTPActiveRequests.Inc()

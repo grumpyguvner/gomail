@@ -5,9 +5,9 @@ A high-performance mail server solution that combines Postfix SMTP with HTTP API
 [![Go Version](https://img.shields.io/badge/Go-1.21%2B-blue)](https://go.dev)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 [![Status](https://img.shields.io/badge/Status-Pre--Production-orange)](PRODUCTION-READINESS-PLAN.md)
-[![Test Coverage](https://img.shields.io/badge/Coverage-42.1%25-yellow)](CHANGELOG.md)
+[![Test Coverage](https://img.shields.io/badge/Coverage-48.2%25-yellow)](CHANGELOG.md)
 
-> ⚠️ **IMPORTANT:** GoMail is currently undergoing production readiness improvements and is NOT yet suitable for production use. Sprint 1 of 6 completed. See [Production Readiness Plan](PRODUCTION-READINESS-PLAN.md) for our 6-week roadmap to production.
+> ⚠️ **IMPORTANT:** GoMail is currently undergoing production readiness improvements and is NOT yet suitable for production use. Sprint 2 Day 5 of 6 weeks completed. See [Production Readiness Plan](PRODUCTION-READINESS-PLAN.md) for our 6-week roadmap to production.
 
 ## Features
 

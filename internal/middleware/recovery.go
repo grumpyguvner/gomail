@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"runtime/debug"
 
+	"github.com/grumpyguvner/gomail/internal/errors"
 	"github.com/grumpyguvner/gomail/internal/logging"
+	"github.com/grumpyguvner/gomail/internal/metrics"
 )
 
 // RecoveryMiddleware handles panics and recovers gracefully
@@ -39,19 +41,12 @@ func RecoveryMiddleware(next http.Handler) http.Handler {
 					"path", r.URL.Path,
 					"stack_trace", string(stack))
 
-				// Return a generic error response
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusInternalServerError)
+				// Record error metric
+				metrics.RecordError(string(errors.ErrorTypeInternal), r.URL.Path)
 
-				response := `{"error":"Internal Server Error","message":"An unexpected error occurred"}`
-				if reqIDStr != "" {
-					response = fmt.Sprintf(`{"error":"Internal Server Error","message":"An unexpected error occurred","request_id":"%s"}`, reqIDStr)
-				}
-
-				_, writeErr := w.Write([]byte(response))
-				if writeErr != nil {
-					logger.Errorf("Failed to write error response: %v", writeErr)
-				}
+				// Return an error response using our error handler
+				panicErr := errors.InternalError("An unexpected error occurred", fmt.Errorf("%v", err))
+				SendErrorResponse(w, panicErr)
 			}
 		}()
 
@@ -76,19 +71,12 @@ func RecoveryWithLogger(logger func(format string, args ...interface{})) func(ht
 						logger("Request ID: %v", requestID)
 					}
 
-					// Return a generic error response
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusInternalServerError)
+					// Record error metric
+					metrics.RecordError(string(errors.ErrorTypeInternal), r.URL.Path)
 
-					response := `{"error":"Internal Server Error","message":"An unexpected error occurred"}`
-					if requestID != nil {
-						response = fmt.Sprintf(`{"error":"Internal Server Error","message":"An unexpected error occurred","request_id":"%v"}`, requestID)
-					}
-
-					_, writeErr := w.Write([]byte(response))
-					if writeErr != nil {
-						logger("Failed to write error response: %v", writeErr)
-					}
+					// Return an error response using our error handler
+					panicErr := errors.InternalError("An unexpected error occurred", fmt.Errorf("%v", err))
+					SendErrorResponse(w, panicErr)
 				}
 			}()
 

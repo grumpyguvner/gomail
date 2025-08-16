@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/grumpyguvner/gomail/internal/config"
+	"github.com/grumpyguvner/gomail/internal/errors"
 	"github.com/grumpyguvner/gomail/internal/logging"
 	"github.com/grumpyguvner/gomail/internal/mail"
 	"github.com/grumpyguvner/gomail/internal/metrics"
@@ -121,12 +122,12 @@ func (s *Server) Start(ctx context.Context) error {
 		s.listenerMu.RLock()
 		listener := s.listener
 		s.listenerMu.RUnlock()
-		
+
 		if listener == nil {
 			logging.Get().Error("Listener is nil, cannot start server")
 			return
 		}
-		
+
 		if err := s.httpServer.Serve(listener); err != nil && err != http.ErrServerClosed {
 			logging.Get().Errorf("Server error: %v", err)
 		}
@@ -200,12 +201,13 @@ func (s *Server) Shutdown(ctx context.Context) error {
 
 func (s *Server) applyMiddleware(handler http.Handler) http.Handler {
 	// Apply middlewares in reverse order (innermost first)
-	// Request flow: Prometheus -> ActiveRequest -> RateLimit -> RequestID -> Recovery -> handler
+	// Request flow: Prometheus -> ActiveRequest -> RateLimit -> RequestID -> ErrorHandler -> Recovery -> handler
 
 	// Track active requests for graceful shutdown
 	handler = s.activeRequestsMiddleware(handler)
 
 	handler = middleware.RecoveryMiddleware(handler)
+	handler = middleware.ErrorHandlerMiddleware(handler)
 	handler = middleware.RequestIDMiddleware(handler)
 
 	// Add rate limiting with configuration
@@ -231,7 +233,7 @@ func (s *Server) activeRequestsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Reject new requests if shutdown has started
 		if s.shutdownStarted.Load() {
-			http.Error(w, "Server is shutting down", http.StatusServiceUnavailable)
+			middleware.SendErrorResponse(w, errors.UnavailableError("Server is shutting down"))
 			return
 		}
 
@@ -246,13 +248,13 @@ func (s *Server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		auth := r.Header.Get("Authorization")
 		if auth == "" {
-			http.Error(w, "Missing authorization header", http.StatusUnauthorized)
+			middleware.SendErrorResponse(w, errors.AuthError("Missing authorization header"))
 			return
 		}
 
 		token := strings.TrimPrefix(auth, "Bearer ")
 		if token != s.config.BearerToken {
-			http.Error(w, "Invalid authorization token", http.StatusUnauthorized)
+			middleware.SendErrorResponse(w, errors.AuthError("Invalid authorization token"))
 			return
 		}
 
@@ -265,14 +267,17 @@ func (s *Server) handleMailInbound(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 
 	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		// Method not allowed should return 405, not 400
+		err := errors.New(errors.ErrorTypeBadRequest, "Method not allowed")
+		err.StatusCode = http.StatusMethodNotAllowed
+		middleware.SendErrorResponse(w, err)
 		return
 	}
 
 	// Read body with size limit
 	body, err := io.ReadAll(io.LimitReader(r.Body, 26214400)) // 25MB limit
 	if err != nil {
-		http.Error(w, "Failed to read request body", http.StatusBadRequest)
+		middleware.SendErrorResponse(w, errors.BadRequestError("Failed to read request body"))
 		return
 	}
 
@@ -295,7 +300,7 @@ func (s *Server) handleMailInbound(w http.ResponseWriter, r *http.Request) {
 		// JSON format (legacy)
 		var jsonData map[string]interface{}
 		if err := json.Unmarshal(body, &jsonData); err != nil {
-			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+			middleware.SendErrorResponse(w, errors.ValidationError("Invalid JSON", map[string]string{"error": err.Error()}))
 			return
 		}
 		emailData = mail.FromJSON(jsonData)
@@ -305,7 +310,7 @@ func (s *Server) handleMailInbound(w http.ResponseWriter, r *http.Request) {
 		if len(body) > 0 && body[0] == '{' {
 			var jsonData map[string]interface{}
 			if err := json.Unmarshal(body, &jsonData); err != nil {
-				http.Error(w, "Invalid request format", http.StatusBadRequest)
+				middleware.SendErrorResponse(w, errors.BadRequestError("Invalid request format"))
 				return
 			}
 			emailData = mail.FromJSON(jsonData)
@@ -319,7 +324,7 @@ func (s *Server) handleMailInbound(w http.ResponseWriter, r *http.Request) {
 		logging.WithRequestID(requestID).Errorf("Failed to parse email: %v", err)
 		metrics.EmailsProcessed.WithLabelValues("error").Inc()
 		metrics.EmailProcessingDuration.Observe(time.Since(start).Seconds())
-		http.Error(w, "Failed to parse email", http.StatusBadRequest)
+		middleware.SendErrorResponse(w, errors.ValidationError("Failed to parse email", map[string]string{"error": err.Error()}))
 		return
 	}
 
@@ -329,7 +334,7 @@ func (s *Server) handleMailInbound(w http.ResponseWriter, r *http.Request) {
 		logging.WithRequestID(requestID).Errorf("Email validation failed: %v", err)
 		metrics.EmailsProcessed.WithLabelValues("rejected").Inc()
 		metrics.EmailProcessingDuration.Observe(time.Since(start).Seconds())
-		http.Error(w, fmt.Sprintf("Email validation failed: %v", err), http.StatusBadRequest)
+		middleware.SendErrorResponse(w, errors.ValidationError("Email validation failed", map[string]string{"error": err.Error()}))
 		return
 	}
 
@@ -341,7 +346,7 @@ func (s *Server) handleMailInbound(w http.ResponseWriter, r *http.Request) {
 		metrics.StorageOperations.WithLabelValues("write", "error").Inc()
 		metrics.EmailsProcessed.WithLabelValues("error").Inc()
 		metrics.EmailProcessingDuration.Observe(time.Since(start).Seconds())
-		http.Error(w, "Failed to store email", http.StatusInternalServerError)
+		middleware.SendErrorResponse(w, errors.StorageError("Failed to store email", err))
 		return
 	}
 

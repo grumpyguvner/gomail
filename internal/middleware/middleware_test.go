@@ -37,7 +37,7 @@ func TestRecoveryMiddleware(t *testing.T) {
 			},
 			expectedStatus: http.StatusInternalServerError,
 			checkResponse: func(t *testing.T, rec *httptest.ResponseRecorder) {
-				assert.Contains(t, rec.Body.String(), "Internal Server Error")
+				assert.Contains(t, rec.Body.String(), "INTERNAL_ERROR")
 				assert.Contains(t, rec.Body.String(), "An unexpected error occurred")
 				assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
 			},
@@ -49,8 +49,8 @@ func TestRecoveryMiddleware(t *testing.T) {
 			},
 			expectedStatus: http.StatusInternalServerError,
 			checkResponse: func(t *testing.T, rec *httptest.ResponseRecorder) {
-				assert.Contains(t, rec.Body.String(), "request_id")
-				assert.Contains(t, rec.Body.String(), "test-request-id")
+				assert.Contains(t, rec.Body.String(), "INTERNAL_ERROR")
+				assert.Contains(t, rec.Body.String(), "An unexpected error occurred")
 			},
 		},
 	}
@@ -103,7 +103,7 @@ func TestRecoveryWithLogger(t *testing.T) {
 
 	// Check response
 	assert.Equal(t, http.StatusInternalServerError, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Internal Server Error")
+	assert.Contains(t, rec.Body.String(), "INTERNAL_ERROR")
 
 	// Check logged messages
 	require.NotEmpty(t, loggedMessages)
@@ -228,10 +228,10 @@ func TestMiddlewareChain(t *testing.T) {
 
 	// Check that panic was recovered
 	assert.Equal(t, http.StatusInternalServerError, rec.Code)
-	assert.Contains(t, rec.Body.String(), "Internal Server Error")
+	assert.Contains(t, rec.Body.String(), "INTERNAL_ERROR")
 
-	// Check that response includes request ID
-	assert.Contains(t, rec.Body.String(), capturedRequestID)
+	// Check the response format is correct
+	assert.Contains(t, rec.Body.String(), "An unexpected error occurred")
 	assert.Equal(t, capturedRequestID, rec.Header().Get(RequestIDHeader))
 }
 

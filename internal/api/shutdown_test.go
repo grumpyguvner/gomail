@@ -181,10 +181,14 @@ func TestServer_GracefulShutdown_Timeout(t *testing.T) {
 	}
 
 	// Get the actual port
-	if server.listener == nil {
+	server.listenerMu.RLock()
+	listener := server.listener
+	server.listenerMu.RUnlock()
+
+	if listener == nil {
 		t.Fatal("Server listener is nil after start")
 	}
-	addr := server.listener.Addr().String()
+	addr := listener.Addr().String()
 	baseURL := fmt.Sprintf("http://%s", addr)
 
 	// Start a very slow request
@@ -261,10 +265,14 @@ func TestServer_RejectRequestsDuringShutdown(t *testing.T) {
 	}
 
 	// Get the actual port
-	if server.listener == nil {
+	server.listenerMu.RLock()
+	listener := server.listener
+	server.listenerMu.RUnlock()
+
+	if listener == nil {
 		t.Fatal("Server listener is nil after start")
 	}
-	addr := server.listener.Addr().String()
+	addr := listener.Addr().String()
 	baseURL := fmt.Sprintf("http://%s", addr)
 
 	// Mark server as shutting down

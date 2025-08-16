@@ -102,6 +102,15 @@ var (
 			Buckets: prometheus.LinearBuckets(0, 5, 7), // 0 to 30 seconds in 5-second intervals
 		},
 	)
+
+	// Error Metrics
+	ErrorsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "gomail_errors_total",
+			Help: "Total number of errors by type",
+		},
+		[]string{"type", "handler"}, // type: error category, handler: endpoint or component
+	)
 )
 
 // Init registers all metrics with the Prometheus registry
@@ -119,6 +128,7 @@ func Init() {
 		_ = prometheus.Register(RateLimitHits)
 		_ = prometheus.Register(ShutdownsInitiated)
 		_ = prometheus.Register(ShutdownDuration)
+		_ = prometheus.Register(ErrorsTotal)
 
 		// Register Go runtime metrics
 		_ = prometheus.Register(collectors.NewGoCollector())
@@ -139,7 +149,115 @@ func Reset() {
 	prometheus.Unregister(RateLimitHits)
 	prometheus.Unregister(ShutdownsInitiated)
 	prometheus.Unregister(ShutdownDuration)
+	prometheus.Unregister(ErrorsTotal)
 	prometheus.Unregister(collectors.NewGoCollector())
 	prometheus.Unregister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
+
+	// Reset the once to allow re-initialization
 	once = sync.Once{}
+
+	// Re-create all metric instances to clear any existing data
+	HTTPRequestDuration = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "gomail_http_request_duration_seconds",
+			Help:    "HTTP request latencies in seconds",
+			Buckets: prometheus.DefBuckets,
+		},
+		[]string{"method", "endpoint", "status"},
+	)
+
+	HTTPActiveRequests = prometheus.NewGauge(
+		prometheus.GaugeOpts{
+			Name: "gomail_http_active_requests",
+			Help: "Number of active HTTP requests",
+		},
+	)
+
+	HTTPResponseSize = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "gomail_http_response_size_bytes",
+			Help:    "Size of HTTP responses in bytes",
+			Buckets: prometheus.ExponentialBuckets(100, 10, 7),
+		},
+		[]string{"method", "endpoint", "status"},
+	)
+
+	HTTPRequestsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "gomail_http_requests_total",
+			Help: "Total number of HTTP requests",
+		},
+		[]string{"method", "endpoint", "status"},
+	)
+
+	EmailsProcessed = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "gomail_emails_processed_total",
+			Help: "Total number of emails processed",
+		},
+		[]string{"status"},
+	)
+
+	EmailSize = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "gomail_email_size_bytes",
+			Help:    "Size of processed emails in bytes",
+			Buckets: prometheus.ExponentialBuckets(1024, 2, 15),
+		},
+	)
+
+	EmailProcessingDuration = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "gomail_email_processing_duration_seconds",
+			Help:    "Time taken to process emails in seconds",
+			Buckets: prometheus.DefBuckets,
+		},
+	)
+
+	StorageOperations = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "gomail_storage_operations_total",
+			Help: "Total number of storage operations",
+		},
+		[]string{"operation", "status"},
+	)
+
+	RateLimitHits = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "gomail_rate_limit_hits_total",
+			Help: "Number of rate limit hits",
+		},
+		[]string{"action"},
+	)
+
+	ShutdownsInitiated = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "gomail_shutdowns_initiated_total",
+			Help: "Number of shutdown requests initiated",
+		},
+		[]string{"type"},
+	)
+
+	ShutdownDuration = prometheus.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "gomail_shutdown_duration_seconds",
+			Help:    "Time taken for server shutdown",
+			Buckets: prometheus.LinearBuckets(0, 5, 7),
+		},
+	)
+
+	ErrorsTotal = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "gomail_errors_total",
+			Help: "Total number of errors by type",
+		},
+		[]string{"type", "handler"},
+	)
+}
+
+// RecordError increments the error counter for a specific error type and handler
+func RecordError(errorType string, handler string) {
+	if ErrorsTotal != nil {
+		ErrorsTotal.WithLabelValues(errorType, handler).Inc()
+	}
 }

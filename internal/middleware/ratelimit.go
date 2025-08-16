@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/grumpyguvner/gomail/internal/errors"
 	"github.com/grumpyguvner/gomail/internal/metrics"
 	"go.uber.org/zap"
 )
@@ -63,7 +64,12 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 			w.Header().Set("X-RateLimit-Limit", string(rune(rl.rate)))
 			w.Header().Set("X-RateLimit-Remaining", "0")
 			w.Header().Set("Retry-After", "60")
-			http.Error(w, "Rate limit exceeded", http.StatusTooManyRequests)
+
+			// Send rate limit error response
+			SendErrorResponse(w, errors.RateLimitError("Rate limit exceeded", map[string]interface{}{
+				"limit":       rl.rate,
+				"retry_after": 60,
+			}))
 			return
 		}
 
