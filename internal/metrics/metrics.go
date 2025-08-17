@@ -159,6 +159,33 @@ func Init() {
 		_ = prometheus.Register(ConnectionPoolSize)
 		_ = prometheus.Register(ConnectionPoolWaitTime)
 
+		// Register security metrics
+		_ = prometheus.Register(ConnectionsAccepted)
+		_ = prometheus.Register(ConnectionsRejected)
+		_ = prometheus.Register(ActiveConnections)
+		_ = prometheus.Register(ConnectionsPerIP)
+		_ = prometheus.Register(BannedIPs)
+		_ = prometheus.Register(ThrottleAllowed)
+		_ = prometheus.Register(ThrottleRejections)
+		_ = prometheus.Register(ThrottleWaitTime)
+		_ = prometheus.Register(UniqueIPs)
+		_ = prometheus.Register(SecurityViolations)
+		_ = prometheus.Register(IPReputationChecks)
+		_ = prometheus.Register(ConnectionAbuseDetected)
+		_ = prometheus.Register(FirewallRulesApplied)
+		_ = prometheus.Register(FirewallBlockedConnections)
+
+		// Register TLS metrics
+		_ = prometheus.Register(TLSConnections)
+		_ = prometheus.Register(TLSHandshakeErrors)
+		_ = prometheus.Register(TLSVersion)
+		_ = prometheus.Register(TLSCipherSuite)
+		_ = prometheus.Register(STARTTLSCommands)
+		_ = prometheus.Register(TLSCertificateExpiry)
+		_ = prometheus.Register(TLSHandshakeDuration)
+		_ = prometheus.Register(PlaintextConnections)
+		_ = prometheus.Register(TLSRequiredRejections)
+
 		// Register Go runtime metrics
 		_ = prometheus.Register(collectors.NewGoCollector())
 		_ = prometheus.Register(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
@@ -182,6 +209,34 @@ func Reset() {
 	prometheus.Unregister(TimeoutsTotal)
 	prometheus.Unregister(ConnectionPoolSize)
 	prometheus.Unregister(ConnectionPoolWaitTime)
+
+	// Unregister security metrics
+	prometheus.Unregister(ConnectionsAccepted)
+	prometheus.Unregister(ConnectionsRejected)
+	prometheus.Unregister(ActiveConnections)
+	prometheus.Unregister(ConnectionsPerIP)
+	prometheus.Unregister(BannedIPs)
+	prometheus.Unregister(ThrottleAllowed)
+	prometheus.Unregister(ThrottleRejections)
+	prometheus.Unregister(ThrottleWaitTime)
+	prometheus.Unregister(UniqueIPs)
+	prometheus.Unregister(SecurityViolations)
+	prometheus.Unregister(IPReputationChecks)
+	prometheus.Unregister(ConnectionAbuseDetected)
+	prometheus.Unregister(FirewallRulesApplied)
+	prometheus.Unregister(FirewallBlockedConnections)
+
+	// Unregister TLS metrics
+	prometheus.Unregister(TLSConnections)
+	prometheus.Unregister(TLSHandshakeErrors)
+	prometheus.Unregister(TLSVersion)
+	prometheus.Unregister(TLSCipherSuite)
+	prometheus.Unregister(STARTTLSCommands)
+	prometheus.Unregister(TLSCertificateExpiry)
+	prometheus.Unregister(TLSHandshakeDuration)
+	prometheus.Unregister(PlaintextConnections)
+	prometheus.Unregister(TLSRequiredRejections)
+
 	prometheus.Unregister(collectors.NewGoCollector())
 	prometheus.Unregister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
 

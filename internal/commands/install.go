@@ -237,12 +237,12 @@ API_ENDPOINT=%s
 // setupHostnameAndPTR sets up the local hostname and renames the DigitalOcean droplet
 func setupHostnameAndPTR(cfg *config.Config) error {
 	logger := logging.Get()
-	
+
 	// First, update the local hostname
 	if err := updateLocalHostname(cfg.MailHostname); err != nil {
 		return fmt.Errorf("failed to update local hostname: %w", err)
 	}
-	
+
 	// Then, rename the droplet if we have DO API access
 	if cfg.DOAPIToken != "" {
 		client := digitalocean.NewClient(cfg.DOAPIToken)
@@ -252,7 +252,7 @@ func setupHostnameAndPTR(cfg *config.Config) error {
 			logger.Info("You may need to manually rename your droplet in DigitalOcean console")
 		}
 	}
-	
+
 	return nil
 }
 
@@ -265,17 +265,17 @@ func updateLocalHostname(hostname string) error {
 			return fmt.Errorf("failed to set hostname: %w", err)
 		}
 	}
-	
+
 	// Update /etc/hostname
 	if err := os.WriteFile("/etc/hostname", []byte(hostname+"\n"), 0644); err != nil {
 		return fmt.Errorf("failed to write /etc/hostname: %w", err)
 	}
-	
+
 	// Update /etc/hosts
 	if err := updateEtcHosts(hostname); err != nil {
 		return fmt.Errorf("failed to update /etc/hosts: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -286,17 +286,17 @@ func updateEtcHosts(hostname string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read /etc/hosts: %w", err)
 	}
-	
+
 	lines := strings.Split(string(content), "\n")
 	var newLines []string
 	updated := false
-	
+
 	// Get the short hostname (without domain)
 	shortHostname := hostname
 	if idx := strings.Index(hostname, "."); idx > 0 {
 		shortHostname = hostname[:idx]
 	}
-	
+
 	for _, line := range lines {
 		// Skip empty lines and comments
 		trimmed := strings.TrimSpace(line)
@@ -304,7 +304,7 @@ func updateEtcHosts(hostname string) error {
 			newLines = append(newLines, line)
 			continue
 		}
-		
+
 		// Check if this is a localhost line that needs updating
 		if strings.HasPrefix(trimmed, "127.0.1.1") || strings.HasPrefix(trimmed, "127.0.0.1") {
 			fields := strings.Fields(trimmed)
@@ -331,7 +331,7 @@ func updateEtcHosts(hostname string) error {
 			newLines = append(newLines, line)
 		}
 	}
-	
+
 	// If we didn't find a 127.0.1.1 line, add one
 	if !updated {
 		// Find where to insert (after 127.0.0.1 line)
@@ -343,12 +343,12 @@ func updateEtcHosts(hostname string) error {
 			}
 		}
 	}
-	
+
 	// Write back to /etc/hosts
 	newContent := strings.Join(newLines, "\n")
 	if err := os.WriteFile("/etc/hosts", []byte(newContent), 0644); err != nil {
 		return fmt.Errorf("failed to write /etc/hosts: %w", err)
 	}
-	
+
 	return nil
 }

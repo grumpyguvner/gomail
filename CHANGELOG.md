@@ -79,17 +79,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Timeout metrics tracking
   - Comprehensive test coverage for all new features
 
-### 🔜 Sprint 3: SMTP Security & Standards (2025-09-02 to 2025-09-12)
+### 🚧 Sprint 3: SMTP Security & Standards (2025-08-17)
 
-#### Planned
-- [ ] TLS 1.2+ support with strong ciphers
-- [ ] STARTTLS on port 25
+#### Completed (Day 18-20, 27)
+- [x] TLS 1.2+ enforcement with strong cipher suites
+  - Enforced minimum TLS 1.2 with configurable cipher suites
+  - Strong cipher preferences (ECDHE, AES-GCM, ChaCha20-Poly1305)
+  - Postfix TLS configuration with DH parameters
+- [x] STARTTLS support on port 25
+  - Full STARTTLS implementation for SMTP
+  - Opportunistic TLS with upgrade capability
+  - Connection upgrade handling with proper handshake
+- [x] TLS connection metrics
+  - Connection counts by TLS version and cipher suite
+  - Handshake duration and error tracking
+  - Certificate expiry monitoring
+- [x] Connection limiting per IP (Day 27)
+  - Configurable per-IP and global connection limits
+  - Automatic ban after violation threshold
+  - Manual ban/unban capability
+- [x] Banned IP list management
+  - Time-based bans with automatic expiry
+  - Violation tracking and auto-ban logic
+  - Real-time ban status checking
+- [x] Connection throttling
+  - Token bucket rate limiting (global and per-IP)
+  - Configurable rates with burst handling
+  - Connection reservation system
+
+#### Still Pending
 - [ ] Port 587 submission service
 - [ ] DKIM signing implementation
 - [ ] SPF validation
 - [ ] DMARC policy enforcement
-- [ ] Connection limiting per IP
-- [ ] Banned IP list management
 
 ### 🔜 Sprint 4: Operational Excellence (2025-09-12 to 2025-09-26)
 

@@ -29,8 +29,8 @@ func NewSSLCommand() *cobra.Command {
 
 func newSSLSetupCommand() *cobra.Command {
 	var (
-		email    string
-		staging  bool
+		email     string
+		staging   bool
 		autoAgree bool
 	)
 

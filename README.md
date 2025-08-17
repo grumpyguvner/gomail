@@ -22,6 +22,16 @@ A high-performance mail server solution that combines Postfix SMTP with HTTP API
 - 🔍 **Request Tracking** - Unique request IDs for debugging
 - 💪 **Panic Recovery** - Automatic recovery from unexpected errors
 
+### Security Features (Sprint 3)
+
+- 🔒 **TLS 1.2+ Enforcement** - Strong cipher suites only (ECDHE, AES-GCM, ChaCha20)
+- 🛡️ **STARTTLS Support** - Opportunistic encryption on port 25
+- 🏛️ **Let's Encrypt Integration** - Automatic SSL certificate management
+- 🚦 **Connection Limiting** - Per-IP and global connection limits
+- 🚫 **IP Ban Management** - Automatic violation detection and banning
+- ⏱️ **Rate Limiting** - Token bucket throttling with configurable rates
+- 📊 **Security Metrics** - TLS versions, cipher suites, connection tracking
+
 ## Quick Start
 
 ### One-Line Installation
@@ -71,7 +81,10 @@ gomail
 ├── install     # Install system components
 ├── domain      # Manage email domains
 ├── dns         # Configure DNS records
-├── ssl         # Manage SSL certificates
+├── ssl         # Manage SSL certificates (NEW)
+│   ├── setup   # Obtain Let's Encrypt certificate
+│   ├── renew   # Renew existing certificate
+│   └── status  # Check certificate status
 ├── test        # Test configuration
 └── config      # Manage configuration
 ```

@@ -28,7 +28,7 @@ type Manager struct {
 // NewManager creates a new SSL manager
 func NewManager(cfg *config.Config) *Manager {
 	certDir := "/etc/mailserver/certs"
-	
+
 	return &Manager{
 		config:  cfg,
 		certDir: certDir,
@@ -43,7 +43,7 @@ func (m *Manager) CertDir() string {
 // ObtainCertificate obtains a new certificate from Let's Encrypt
 func (m *Manager) ObtainCertificate() error {
 	logger := logging.Get()
-	
+
 	// Ensure cert directory exists
 	if err := os.MkdirAll(m.certDir, 0700); err != nil {
 		return fmt.Errorf("failed to create cert directory: %w", err)
@@ -67,7 +67,7 @@ func (m *Manager) ObtainCertificate() error {
 
 	// Start HTTP-01 challenge server
 	logger.Info("Starting ACME HTTP-01 challenge server on port 80...")
-	
+
 	// Ensure port 80 is available
 	if err := m.ensurePort80Available(); err != nil {
 		return fmt.Errorf("failed to prepare port 80: %w", err)
@@ -131,10 +131,10 @@ func (m *Manager) ExpirationDate() (time.Time, error) {
 // ConfigurePostfix configures Postfix to use the SSL certificate
 func (m *Manager) ConfigurePostfix() error {
 	logger := logging.Get()
-	
+
 	certPath := filepath.Join(m.certDir, "cert.pem")
 	keyPath := filepath.Join(m.certDir, "key.pem")
-	
+
 	// Update Postfix configuration
 	postfixConfig := []struct {
 		key   string
@@ -181,7 +181,7 @@ func (m *Manager) ReloadPostfix() error {
 func (m *Manager) enableSubmissionPort() error {
 	// Update master.cf to enable submission port
 	masterCf := "/etc/postfix/master.cf"
-	
+
 	// Read current master.cf
 	content, err := os.ReadFile(masterCf)
 	if err != nil {
@@ -225,7 +225,7 @@ func (m *Manager) ensurePort80Available() error {
 	// Check if port 80 is in use
 	cmd := exec.Command("ss", "-tlnp", "sport = :80")
 	output, _ := cmd.Output()
-	
+
 	if len(output) > 0 {
 		// Try to stop common web servers that might be using port 80
 		services := []string{"nginx", "apache2", "httpd"}
@@ -233,7 +233,7 @@ func (m *Manager) ensurePort80Available() error {
 			_ = exec.Command("systemctl", "stop", service).Run()
 		}
 	}
-	
+
 	return nil
 }
 
@@ -280,8 +280,8 @@ func (m *Manager) saveCertificate(cert *tls.Certificate) error {
 	}
 
 	// Set appropriate permissions
-	os.Chmod(certPath, 0644)
-	os.Chmod(keyPath, 0600)
+	_ = os.Chmod(certPath, 0644)
+	_ = os.Chmod(keyPath, 0600)
 
 	return nil
 }
@@ -291,7 +291,7 @@ func (m *Manager) getPromptFunc() func(tosURL string) bool {
 	if m.AgreeToTOS {
 		return autocert.AcceptTOS
 	}
-	
+
 	return func(tosURL string) bool {
 		logger := logging.Get()
 		logger.Infof("Please review Let's Encrypt Terms of Service: %s", tosURL)
