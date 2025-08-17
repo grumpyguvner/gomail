@@ -6,7 +6,7 @@ set -e
 
 # Configuration
 DO_TOKEN="${DO_TOKEN:-}"  # Must be set as environment variable
-TEST_DOMAIN="${TEST_DOMAIN:-entilly.com}"
+TEST_DOMAIN="${TEST_DOMAIN:-}"  # Must be set as environment variable
 REGION="${REGION:-lon1}"
 SIZE="${SIZE:-s-1vcpu-1gb-intel}"
 IMAGE="${IMAGE:-centos-stream-9-x64}"
@@ -62,10 +62,16 @@ trap cleanup EXIT
 
 # Main test process
 main() {
-    # Check for required token
+    # Check for required variables
     if [ -z "$DO_TOKEN" ]; then
         log_error "DO_TOKEN environment variable is required"
-        log_error "Usage: DO_TOKEN=your_token ./test-droplet.sh"
+        log_error "Usage: DO_TOKEN=your_token TEST_DOMAIN=yourdomain.com ./test-droplet.sh"
+        exit 1
+    fi
+    
+    if [ -z "$TEST_DOMAIN" ]; then
+        log_error "TEST_DOMAIN environment variable is required"
+        log_error "Usage: DO_TOKEN=your_token TEST_DOMAIN=yourdomain.com ./test-droplet.sh"
         exit 1
     fi
     
