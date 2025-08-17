@@ -87,6 +87,7 @@ func (i *Installer) configurePostfix() error {
 		"smtpd_banner":                        "$myhostname ESMTP",
 		"smtpd_relay_restrictions":            "permit_mynetworks,reject_unauth_destination",
 		"smtpd_recipient_restrictions":        "permit_mynetworks,reject_unauth_destination",
+		"smtpd_client_restrictions":           "permit_mynetworks,reject_unknown_reverse_client_hostname",
 	}
 
 	for key, value := range settings {
