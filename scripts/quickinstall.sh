@@ -36,7 +36,9 @@ case "$ARCH" in
 esac
 
 BINARY="gomail-${OS}-${ARCH}"
+WEBADMIN_BINARY="gomail-webadmin-${OS}-${ARCH}"
 RELEASE_URL="https://github.com/grumpyguvner/gomail/releases/latest/download/${BINARY}"
+WEBADMIN_URL="https://github.com/grumpyguvner/gomail/releases/latest/download/${WEBADMIN_BINARY}"
 
 # Check if running as root
 if [[ $EUID -ne 0 ]]; then
@@ -85,13 +87,19 @@ if [ "$IS_FRESH_INSTALL" = true ]; then
   BEARER_TOKEN=$(openssl rand -base64 32 | tr -d '\n')
 fi
 
-# Step 1: Download and install binary
+# Step 1: Download and install binaries
 echo
 echo "📦 Installing GoMail..."
 wget -q -O /tmp/gomail "$RELEASE_URL" || { echo "Failed to download GoMail"; exit 1; }
 chmod +x /tmp/gomail
 mv /tmp/gomail /usr/local/bin/gomail
 echo "✅ GoMail binary installed"
+
+echo "📦 Installing GoMail WebAdmin..."
+wget -q -O /tmp/gomail-webadmin "$WEBADMIN_URL" || { echo "Failed to download WebAdmin"; exit 1; }
+chmod +x /tmp/gomail-webadmin
+mv /tmp/gomail-webadmin /usr/local/bin/gomail-webadmin
+echo "✅ WebAdmin binary installed"
 
 # Step 2: Generate or update configuration
 echo "🔧 Configuring GoMail..."
@@ -183,13 +191,19 @@ systemctl enable gomail >/dev/null 2>&1
 systemctl start gomail
 echo "✅ Service started"
 
-# Step 6: Test the installation
+# Step 6: Start WebAdmin service
+echo "🌐 Starting WebAdmin interface..."
+systemctl enable gomail-webadmin >/dev/null 2>&1
+systemctl start gomail-webadmin
+echo "✅ WebAdmin service started"
+
+# Step 7: Test the installation
 echo "🧪 Testing installation..."
 sleep 2
 if curl -s http://localhost:3000/health | grep -q "healthy"; then
-  echo "✅ Health check passed"
+  echo "✅ API health check passed"
 else
-  echo "⚠️  Health check failed - check logs with: journalctl -u gomail -n 50"
+  echo "⚠️  API health check failed - check logs with: journalctl -u gomail -n 50"
 fi
 
 # Final output
@@ -205,8 +219,18 @@ if [ "$IS_FRESH_INSTALL" = true ]; then
 fi
 echo "   • Primary domain: ${PRIMARY_DOMAIN}"
 echo "   • API endpoint: http://localhost:3000/mail/inbound"
+echo "   • WebAdmin URL: https://${PRIMARY_DOMAIN}/"
 if [ -n "$DO_TOKEN" ]; then
   echo "   • DigitalOcean: Configured"
+fi
+echo
+echo "🌐 Web Administration:"
+echo "   • URL: https://${PRIMARY_DOMAIN}/"
+echo "   • Username: admin"
+if [ "$IS_FRESH_INSTALL" = true ]; then
+  echo "   • Token: ${BEARER_TOKEN}"
+else
+  echo "   • Token: (check /etc/sysconfig/gomail-webadmin)"
 fi
 echo
 echo "📝 Next steps:"
@@ -219,11 +243,14 @@ else
 fi
 echo "   2. Test email delivery:"
 echo "      gomail test"
-echo "   3. View logs:"
+echo "   3. Access web interface:"
+echo "      https://${PRIMARY_DOMAIN}/"
+echo "   4. View logs:"
 echo "      journalctl -u gomail -f"
+echo "      journalctl -u gomail-webadmin -f"
 echo
 if [ "$IS_FRESH_INSTALL" = true ]; then
   echo "🔐 IMPORTANT: Save your bearer token securely!"
-  echo "   It's required for API authentication."
+  echo "   It's required for API and WebAdmin authentication."
 fi
 echo

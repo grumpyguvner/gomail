@@ -172,14 +172,22 @@ release-prep: check
 	fi
 	@echo "Building release binaries for version $(VERSION)..."
 	@mkdir -p $(BUILD_DIR)/release
-	@echo "  • Building linux-amd64..."
+	@echo "  • Building gomail linux-amd64..."
 	@GOOS=linux GOARCH=amd64 $(GOBUILD) -ldflags "-X main.version=$(VERSION)" -o $(BUILD_DIR)/release/$(BINARY_NAME)-linux-amd64 ./cmd/mailserver
-	@echo "  • Building linux-arm64..."
+	@echo "  • Building gomail linux-arm64..."
 	@GOOS=linux GOARCH=arm64 $(GOBUILD) -ldflags "-X main.version=$(VERSION)" -o $(BUILD_DIR)/release/$(BINARY_NAME)-linux-arm64 ./cmd/mailserver
-	@echo "  • Building darwin-amd64..."
+	@echo "  • Building gomail darwin-amd64..."
 	@GOOS=darwin GOARCH=amd64 $(GOBUILD) -ldflags "-X main.version=$(VERSION)" -o $(BUILD_DIR)/release/$(BINARY_NAME)-darwin-amd64 ./cmd/mailserver
-	@echo "  • Building darwin-arm64..."
+	@echo "  • Building gomail darwin-arm64..."
 	@GOOS=darwin GOARCH=arm64 $(GOBUILD) -ldflags "-X main.version=$(VERSION)" -o $(BUILD_DIR)/release/$(BINARY_NAME)-darwin-arm64 ./cmd/mailserver
+	@echo "  • Building webadmin linux-amd64..."
+	@GOOS=linux GOARCH=amd64 $(GOBUILD) -ldflags "-X main.version=$(VERSION)" -o $(BUILD_DIR)/release/$(BINARY_NAME)-webadmin-linux-amd64 ./cmd/webadmin
+	@echo "  • Building webadmin linux-arm64..."
+	@GOOS=linux GOARCH=arm64 $(GOBUILD) -ldflags "-X main.version=$(VERSION)" -o $(BUILD_DIR)/release/$(BINARY_NAME)-webadmin-linux-arm64 ./cmd/webadmin
+	@echo "  • Building webadmin darwin-amd64..."
+	@GOOS=darwin GOARCH=amd64 $(GOBUILD) -ldflags "-X main.version=$(VERSION)" -o $(BUILD_DIR)/release/$(BINARY_NAME)-webadmin-darwin-amd64 ./cmd/webadmin
+	@echo "  • Building webadmin darwin-arm64..."
+	@GOOS=darwin GOARCH=arm64 $(GOBUILD) -ldflags "-X main.version=$(VERSION)" -o $(BUILD_DIR)/release/$(BINARY_NAME)-webadmin-darwin-arm64 ./cmd/webadmin
 	@echo "  • Creating checksums..."
 	@cd $(BUILD_DIR)/release && sha256sum $(BINARY_NAME)-* > checksums.txt
 	@echo "  • Copying installation scripts..."
@@ -196,6 +204,7 @@ release-build:
 	fi
 	mkdir -p $(BUILD_DIR)/release
 	GOOS=linux GOARCH=amd64 $(GOBUILD) -ldflags "-X main.version=$(VERSION)" -o $(BUILD_DIR)/release/$(BINARY_NAME)-linux-amd64 ./cmd/mailserver
+	GOOS=linux GOARCH=amd64 $(GOBUILD) -ldflags "-X main.version=$(VERSION)" -o $(BUILD_DIR)/release/$(BINARY_NAME)-webadmin-linux-amd64 ./cmd/webadmin
 	@echo "✓ Test build successful for $(VERSION)"
 
 # Create and push a release tag

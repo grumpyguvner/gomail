@@ -20,9 +20,11 @@ sudo gomail quickstart
 
 - **Single Binary**: 15MB executable with no runtime dependencies
 - **API-Driven**: All email operations through authenticated REST API
+- **Web Administration**: HTTPS interface for domain health monitoring and management
 - **Email Authentication**: SPF, DKIM, and DMARC verification
 - **Security Hardened**: TLS 1.2+, STARTTLS, rate limiting, connection security
 - **Multi-Domain**: Handle multiple email domains from one instance
+- **Domain Health Monitoring**: Real-time DNS, SPF, DKIM, DMARC, SSL validation
 - **Monitoring**: Built-in Prometheus metrics and health endpoints
 
 ## 🏗️ Architecture
@@ -52,12 +54,23 @@ For development setup and contribution guidelines:
 - [Contributing](docs/contributing.md) - How to contribute
 - [Release Process](docs/release.md) - Release workflow
 
+## 🌐 Web Administration
+
+After installation, access the web interface at `https://your-domain/` with your bearer token. Features include:
+- Real-time domain health monitoring
+- DNS, SPF, DKIM, DMARC validation
+- SSL certificate monitoring
+- Email management interface
+- Routing rules configuration
+- System metrics dashboard
+
 ## 📊 Current Status
 
-GoMail has completed Sprint 3 of the production readiness plan:
+GoMail has completed Sprint 3a of the production readiness plan:
 - ✅ Core functionality and testing infrastructure
 - ✅ Error handling, monitoring, and metrics
 - ✅ TLS/STARTTLS and email authentication (SPF/DKIM/DMARC)
+- ✅ Web administration interface with domain health monitoring
 - ⏳ Sprint 4: Operational excellence (pending)
 
 ## 📬 Use Cases
