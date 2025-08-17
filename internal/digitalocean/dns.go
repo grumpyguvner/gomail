@@ -189,7 +189,7 @@ func (c *Client) SetupMailDNS(domain, mailHostname, serverIP string) error {
 			Type: "A",
 			Name: mailSubdomain,
 			Data: serverIP,
-			TTL:  3600,
+			TTL:  30,
 		}
 		if err := c.UpsertDNSRecord(domain, aRecord); err != nil {
 			return fmt.Errorf("failed to create A record: %w", err)
@@ -202,7 +202,7 @@ func (c *Client) SetupMailDNS(domain, mailHostname, serverIP string) error {
 		Name:     "@",
 		Data:     mailHostname + ".",
 		Priority: 10,
-		TTL:      3600,
+		TTL:      30,
 	}
 	if err := c.UpsertDNSRecord(domain, mxRecord); err != nil {
 		return fmt.Errorf("failed to create MX record: %w", err)
@@ -213,7 +213,7 @@ func (c *Client) SetupMailDNS(domain, mailHostname, serverIP string) error {
 		Type: "TXT",
 		Name: "@",
 		Data: fmt.Sprintf("v=spf1 mx a:%s ~all", mailHostname),
-		TTL:  3600,
+		TTL:  30,
 	}
 	if err := c.UpsertDNSRecord(domain, spfRecord); err != nil {
 		return fmt.Errorf("failed to create SPF record: %w", err)
@@ -224,7 +224,7 @@ func (c *Client) SetupMailDNS(domain, mailHostname, serverIP string) error {
 		Type: "TXT",
 		Name: "_dmarc",
 		Data: fmt.Sprintf("v=DMARC1; p=none; rua=mailto:postmaster@%s", domain),
-		TTL:  3600,
+		TTL:  30,
 	}
 	if err := c.UpsertDNSRecord(domain, dmarcRecord); err != nil {
 		return fmt.Errorf("failed to create DMARC record: %w", err)
@@ -301,7 +301,7 @@ func (c *Client) SetupInfraDNS(infraDomain, mailHostname, serverIP string) error
 		Type: "A",
 		Name: mailSubdomain,
 		Data: serverIP,
-		TTL:  3600,
+		TTL:  30,
 	}
 	if err := c.UpsertDNSRecord(infraDomain, aRecord); err != nil {
 		return fmt.Errorf("failed to create A record for mail hostname: %w", err)
