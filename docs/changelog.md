@@ -11,6 +11,37 @@ All notable changes to GoMail are documented here. Format based on [Keep a Chang
   - Backup procedures
   - Kubernetes support
 
+## [1.4.0] - 2025-08-17
+
+### Added - Sprint 3a: Web Administration UI
+- Web-based administration interface (BFF architecture)
+- HTTPS server on port 443 with existing SSL certificates
+- Comprehensive domain health monitoring system
+  - DNS record validation (A, MX, TXT, PTR)
+  - SPF record validation and syntax checking
+  - DKIM record discovery and validation
+  - DMARC policy checking and compliance
+  - SSL certificate validation and expiry monitoring
+  - Deliverability testing (blacklist checking, reputation scoring)
+- Bearer token authentication for web interface
+- Custom optimized CSS (no external dependencies)
+- Real-time updates via Server-Sent Events (SSE)
+- Domain management interface
+- Email routing rules configuration
+- Systemd service integration (gomail-webadmin)
+- Installation integration with main GoMail installer
+
+### Changed
+- Makefile updated to build webadmin binary
+- Installation process enhanced with webadmin deployment
+- Added /cmd/webadmin/ directory for BFF server
+
+### Technical
+- Pure Go implementation without npm dependencies
+- Embedded static files for single binary distribution
+- Parallel health checks with caching
+- SPA routing without hash URLs
+
 ## [1.3.0] - 2025-08-17
 
 ### Added - Sprint 3: SMTP Security & Standards

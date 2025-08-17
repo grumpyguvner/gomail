@@ -15,9 +15,10 @@ import (
 
 func NewInstallCommand() *cobra.Command {
 	var (
-		skipPostfix bool
-		skipAPI     bool
-		skipDNS     bool
+		skipPostfix  bool
+		skipAPI      bool
+		skipDNS      bool
+		skipWebAdmin bool
 	)
 
 	cmd := &cobra.Command{
@@ -79,6 +80,15 @@ the API service, and DNS configuration.`,
 				logger.Info("✓ Mail API service installed")
 			}
 
+			// Install WebAdmin service
+			if !skipWebAdmin {
+				logger.Info("Installing web administration interface...")
+				if err := installWebAdminService(cfg); err != nil {
+					return fmt.Errorf("failed to install webadmin service: %w", err)
+				}
+				logger.Info("✓ Web administration interface installed")
+			}
+
 			// Configure DNS if token is available
 			if !skipDNS && cfg.DOAPIToken != "" {
 				logger.Info("Configuring DNS records...")
@@ -97,7 +107,13 @@ the API service, and DNS configuration.`,
 			logger.Info("1. Configure your DNS records (if not using DigitalOcean)")
 			logger.Info("2. Add domains: mailserver domain add example.com")
 			logger.Info("3. Test the system: mailserver test")
-			logger.Info("4. Start the server: mailserver server")
+			logger.Info("4. Start the server: systemctl start mailserver")
+			logger.Info("5. Start webadmin: systemctl start gomail-webadmin")
+			logger.Info("\nWeb Admin Access:")
+			logger.Info("  URL: https://your-domain/")
+			logger.Info("  Username: admin")
+			logger.Infof("  Token: %s", cfg.BearerToken)
+			logger.Info("  (Token saved in /etc/sysconfig/gomail-webadmin)")
 
 			return nil
 		},
@@ -106,6 +122,7 @@ the API service, and DNS configuration.`,
 	cmd.Flags().BoolVar(&skipPostfix, "skip-postfix", false, "skip Postfix installation")
 	cmd.Flags().BoolVar(&skipAPI, "skip-api", false, "skip API service installation")
 	cmd.Flags().BoolVar(&skipDNS, "skip-dns", false, "skip DNS configuration")
+	cmd.Flags().BoolVar(&skipWebAdmin, "skip-webadmin", false, "skip webadmin installation")
 
 	return cmd
 }
@@ -231,6 +248,99 @@ API_ENDPOINT=%s
 		return fmt.Errorf("failed to write environment file: %w", err)
 	}
 
+	return nil
+}
+
+func installWebAdminService(cfg *config.Config) error {
+	logger := logging.Get()
+	
+	// Copy webadmin binary to /usr/local/bin if we're not already there
+	currentBinary, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("failed to get current binary path: %w", err)
+	}
+
+	// The webadmin binary should be built alongside the main binary
+	webAdminBinary := strings.Replace(currentBinary, "mailserver", "gomail-webadmin", 1)
+	targetBinary := "/usr/local/bin/gomail-webadmin"
+	
+	// Check if webadmin binary exists
+	if _, err := os.Stat(webAdminBinary); err != nil {
+		logger.Warnf("WebAdmin binary not found at %s, skipping", webAdminBinary)
+		return nil
+	}
+	
+	// Copy binary to system location
+	source, err := os.ReadFile(webAdminBinary)
+	if err != nil {
+		return fmt.Errorf("failed to read webadmin binary: %w", err)
+	}
+
+	if err := os.WriteFile(targetBinary, source, 0755); err != nil {
+		return fmt.Errorf("failed to install webadmin binary: %w", err)
+	}
+	logger.Infof("Installed webadmin binary to %s", targetBinary)
+
+	// Create webadmin static files directory
+	webadminDir := "/opt/gomail/webadmin"
+	if err := os.MkdirAll(webadminDir, 0755); err != nil {
+		return fmt.Errorf("failed to create webadmin directory: %w", err)
+	}
+	
+	// Install systemd service for webadmin
+	serviceContent := `[Unit]
+Description=GoMail Web Administration Interface
+After=network.target mailserver.service
+Requires=mailserver.service
+
+[Service]
+Type=simple
+User=mailserver
+Group=mailserver
+EnvironmentFile=/etc/sysconfig/gomail-webadmin
+ExecStart=/usr/local/bin/gomail-webadmin
+Restart=on-failure
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/gomail/webadmin
+
+[Install]
+WantedBy=multi-user.target
+`
+	
+	if err := os.WriteFile("/etc/systemd/system/gomail-webadmin.service", []byte(serviceContent), 0644); err != nil {
+		return fmt.Errorf("failed to write webadmin service file: %w", err)
+	}
+
+	// Create environment file for webadmin
+	webadminEnv := fmt.Sprintf(`# GoMail WebAdmin Environment Configuration
+WEBADMIN_PORT=443
+WEBADMIN_SSL_CERT=/etc/mailserver/ssl/cert.pem
+WEBADMIN_SSL_KEY=/etc/mailserver/ssl/key.pem
+WEBADMIN_STATIC_DIR=%s
+WEBADMIN_GOMAIL_API_URL=http://localhost:%d
+WEBADMIN_BEARER_TOKEN=%s
+MAIL_BEARER_TOKEN=%s
+`, webadminDir, cfg.Port, cfg.BearerToken, cfg.BearerToken)
+
+	if err := os.WriteFile("/etc/sysconfig/gomail-webadmin", []byte(webadminEnv), 0600); err != nil {
+		return fmt.Errorf("failed to write webadmin environment file: %w", err)
+	}
+
+	// Reload systemd
+	cmd := exec.Command("systemctl", "daemon-reload")
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to reload systemd: %w", err)
+	}
+	
+	logger.Info("WebAdmin service installed. Access at https://your-domain/")
+	logger.Infof("Use bearer token for authentication: %s", cfg.BearerToken)
+	
 	return nil
 }
 

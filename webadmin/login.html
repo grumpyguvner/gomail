@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GoMail Admin - Login</title>
+    <link rel="stylesheet" href="/assets/css/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-white rounded-lg shadow-lg p-8 max-w-md w-full">
+        <div class="text-center mb-8">
+            <h1 class="text-2xl font-bold text-gray-900">GoMail Administration</h1>
+            <p class="text-sm text-gray-600 mt-2">Enter your credentials to access the admin panel</p>
+        </div>
+
+        <form id="loginForm" class="space-y-6">
+            <div>
+                <label for="username" class="form-label">Username</label>
+                <input type="text" id="username" name="username" class="form-input" 
+                       placeholder="admin" required autofocus>
+            </div>
+
+            <div>
+                <label for="token" class="form-label">Access Token</label>
+                <input type="password" id="token" name="token" class="form-input" 
+                       placeholder="Enter your bearer token" required>
+                <p class="text-xs text-gray-500 mt-1">
+                    Use the bearer token configured during installation
+                </p>
+            </div>
+
+            <div>
+                <button type="submit" class="btn-primary w-full">
+                    Sign In
+                </button>
+            </div>
+
+            <div id="error-message" class="hidden">
+                <p class="text-sm text-red-600 text-center"></p>
+            </div>
+        </form>
+
+        <div class="mt-8 pt-6 border-t border-gray-200">
+            <div class="text-center text-sm text-gray-600">
+                <p>Default credentials:</p>
+                <p class="font-mono text-xs mt-2">
+                    Username: admin<br>
+                    Token: Check /etc/sysconfig/gomail-webadmin
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const token = document.getElementById('token').value;
+            const errorEl = document.getElementById('error-message');
+            
+            // Hide previous errors
+            errorEl.classList.add('hidden');
+            
+            // For now, we just validate username is 'admin' and store the token
+            if (username !== 'admin') {
+                errorEl.querySelector('p').textContent = 'Invalid username';
+                errorEl.classList.remove('hidden');
+                return;
+            }
+            
+            // Test the token by making an API call
+            try {
+                const response = await fetch('/api/health', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                if (response.ok) {
+                    // Store token and redirect
+                    localStorage.setItem('gomail_token', token);
+                    localStorage.setItem('gomail_user', username);
+                    window.location.href = '/';
+                } else if (response.status === 401) {
+                    errorEl.querySelector('p').textContent = 'Invalid access token';
+                    errorEl.classList.remove('hidden');
+                } else {
+                    errorEl.querySelector('p').textContent = 'Connection error. Please try again.';
+                    errorEl.classList.remove('hidden');
+                }
+            } catch (error) {
+                errorEl.querySelector('p').textContent = 'Connection error. Please check the server.';
+                errorEl.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>

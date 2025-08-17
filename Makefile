@@ -20,6 +20,7 @@ GOMOD=$(GOCMD) mod
 build:
 	mkdir -p $(BUILD_DIR)
 	$(GOBUILD) -o $(BUILD_DIR)/$(BINARY_NAME) -v ./cmd/mailserver
+	$(GOBUILD) -o $(BUILD_DIR)/$(BINARY_NAME)-webadmin -v ./cmd/webadmin
 
 # Install the binary to system
 install: build
@@ -143,7 +144,9 @@ build-all: build-linux build-darwin
 build-linux:
 	mkdir -p $(BUILD_DIR)
 	GOOS=linux GOARCH=amd64 $(GOBUILD) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64 -v ./cmd/mailserver
+	GOOS=linux GOARCH=amd64 $(GOBUILD) -o $(BUILD_DIR)/$(BINARY_NAME)-webadmin-linux-amd64 -v ./cmd/webadmin
 	GOOS=linux GOARCH=arm64 $(GOBUILD) -o $(BUILD_DIR)/$(BINARY_NAME)-linux-arm64 -v ./cmd/mailserver
+	GOOS=linux GOARCH=arm64 $(GOBUILD) -o $(BUILD_DIR)/$(BINARY_NAME)-webadmin-linux-arm64 -v ./cmd/webadmin
 
 build-darwin:
 	mkdir -p $(BUILD_DIR)

@@ -1,0 +1,12 @@
+{
+  "name": "gomail-webadmin",
+  "version": "1.0.0",
+  "description": "GoMail Web Administration UI",
+  "scripts": {
+    "build-css": "tailwindcss -i ./assets/css/input.css -o ./assets/css/output.css --watch",
+    "build-css-prod": "tailwindcss -i ./assets/css/input.css -o ./assets/css/output.css --minify"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.0"
+  }
+}

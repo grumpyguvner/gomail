@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900 font-sans;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold text-gray-900;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+  
+  .btn-primary {
+    @apply btn bg-gomail-600 text-white hover:bg-gomail-700 focus:ring-gomail-500;
+  }
+  
+  .btn-secondary {
+    @apply btn bg-gray-200 text-gray-900 hover:bg-gray-300 focus:ring-gray-500;
+  }
+  
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-700 focus:ring-red-500;
+  }
+  
+  .card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200;
+  }
+  
+  .card-header {
+    @apply px-6 py-4 border-b border-gray-200;
+  }
+  
+  .card-body {
+    @apply px-6 py-4;
+  }
+  
+  .status-indicator {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  
+  .status-healthy {
+    @apply status-indicator bg-green-100 text-green-800;
+  }
+  
+  .status-warning {
+    @apply status-indicator bg-yellow-100 text-yellow-800;
+  }
+  
+  .status-error {
+    @apply status-indicator bg-red-100 text-red-800;
+  }
+  
+  .health-score {
+    @apply text-2xl font-bold;
+  }
+  
+  .health-score-good {
+    @apply health-score text-green-600;
+  }
+  
+  .health-score-fair {
+    @apply health-score text-yellow-600;
+  }
+  
+  .health-score-poor {
+    @apply health-score text-red-600;
+  }
+  
+  .form-input {
+    @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gomail-500 focus:border-gomail-500;
+  }
+  
+  .form-label {
+    @apply block text-sm font-medium text-gray-700 mb-1;
+  }
+  
+  .nav-link {
+    @apply flex items-center px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors duration-150;
+  }
+  
+  .nav-link-active {
+    @apply nav-link bg-gomail-50 text-gomail-700 border-r-2 border-gomail-600;
+  }
+}
