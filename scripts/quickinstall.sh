@@ -90,13 +90,27 @@ fi
 # Step 1: Download and install binaries
 echo
 echo "📦 Installing GoMail..."
-wget -q -O /tmp/gomail "$RELEASE_URL" || { echo "Failed to download GoMail"; exit 1; }
+
+# Check for wget or curl
+if command -v wget >/dev/null 2>&1; then
+  DOWNLOAD_CMD="wget -q -O"
+elif command -v curl >/dev/null 2>&1; then
+  DOWNLOAD_CMD="curl -sSL -o"
+else
+  echo "Error: Neither wget nor curl is installed"
+  echo "Please install one of them:"
+  echo "  CentOS/RHEL: sudo dnf install wget"
+  echo "  Ubuntu/Debian: sudo apt install wget"
+  exit 1
+fi
+
+$DOWNLOAD_CMD /tmp/gomail "$RELEASE_URL" || { echo "Failed to download GoMail"; exit 1; }
 chmod +x /tmp/gomail
 mv /tmp/gomail /usr/local/bin/gomail
 echo "✅ GoMail binary installed"
 
 echo "📦 Installing GoMail WebAdmin..."
-wget -q -O /tmp/gomail-webadmin "$WEBADMIN_URL" || { echo "Failed to download WebAdmin"; exit 1; }
+$DOWNLOAD_CMD /tmp/gomail-webadmin "$WEBADMIN_URL" || { echo "Failed to download WebAdmin"; exit 1; }
 chmod +x /tmp/gomail-webadmin
 mv /tmp/gomail-webadmin /usr/local/bin/gomail-webadmin
 echo "✅ WebAdmin binary installed"
