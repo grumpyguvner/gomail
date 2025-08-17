@@ -313,8 +313,8 @@ func installWebAdminService(cfg *config.Config) error {
 		}
 
 		// Set proper permissions
-		os.Chmod(certPath, 0644)
-		os.Chmod(keyPath, 0600)
+		_ = os.Chmod(certPath, 0644)
+		_ = os.Chmod(keyPath, 0600)
 	}
 
 	// Install systemd service for webadmin
