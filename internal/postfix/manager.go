@@ -25,10 +25,10 @@ func (m *DomainManager) AddDomain(domain string) error {
 		return fmt.Errorf("failed to get current domains: %w", err)
 	}
 
-	// Check if domain already exists
+	// Check if domain already exists - if so, return success (idempotent)
 	for _, d := range domains {
 		if d == domain {
-			return fmt.Errorf("domain %s already configured", domain)
+			return nil // Domain already configured, that's fine
 		}
 	}
 
