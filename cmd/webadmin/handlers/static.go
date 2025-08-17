@@ -30,9 +30,7 @@ func (h *StaticHandler) ServeStatic() http.Handler {
 		urlPath := path.Clean(r.URL.Path)
 
 		// Remove leading slash
-		if strings.HasPrefix(urlPath, "/") {
-			urlPath = urlPath[1:]
-		}
+		urlPath = strings.TrimPrefix(urlPath, "/")
 
 		// If path is empty, serve index.html
 		if urlPath == "" {
@@ -53,7 +51,7 @@ func (h *StaticHandler) ServeStatic() http.Handler {
 				defer indexFile.Close()
 				h.setContentType(w, "index.html")
 				// Read and serve the file content
-				io.Copy(w, indexFile)
+				_, _ = io.Copy(w, indexFile)
 				return
 			}
 			// File with extension doesn't exist
@@ -66,7 +64,7 @@ func (h *StaticHandler) ServeStatic() http.Handler {
 		h.setContentType(w, urlPath)
 
 		// Read and serve the file content
-		io.Copy(w, file)
+		_, _ = io.Copy(w, file)
 	})
 }
 

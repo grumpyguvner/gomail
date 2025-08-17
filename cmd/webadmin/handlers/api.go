@@ -172,7 +172,7 @@ func (h *APIHandler) GetEmailRaw(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "text/plain")
 	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=\"email-%s.eml\"", emailID))
-	w.Write(rawEmail)
+	_, _ = w.Write(rawEmail)
 }
 
 // Routing Rules

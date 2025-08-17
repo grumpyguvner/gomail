@@ -81,7 +81,19 @@ main() {
     log_info "Size: $SIZE"
     log_info "Image: $IMAGE"
     
-    # Step 1: Create droplet
+    # Step 1: Get SSH keys from account
+    log_info "Getting SSH keys from DigitalOcean..."
+    SSH_KEY_IDS=$(curl -s -X GET "https://api.digitalocean.com/v2/account/keys" \
+        -H "Authorization: Bearer $DO_TOKEN" | jq -r '[.ssh_keys[].id] | @json')
+    
+    if [ "$SSH_KEY_IDS" == "[]" ] || [ -z "$SSH_KEY_IDS" ]; then
+        log_warn "No SSH keys found in DigitalOcean account, droplet will use password auth"
+        SSH_KEY_IDS="[]"
+    else
+        log_info "Found SSH keys: $SSH_KEY_IDS"
+    fi
+    
+    # Step 2: Create droplet
     log_info "Creating test droplet..."
     DROPLET_NAME="gomail-test-$(date +%s)"
     
@@ -93,7 +105,7 @@ main() {
             \"region\": \"$REGION\",
             \"size\": \"$SIZE\",
             \"image\": \"$IMAGE\",
-            \"ssh_keys\": [],
+            \"ssh_keys\": $SSH_KEY_IDS,
             \"backups\": false,
             \"ipv6\": false,
             \"monitoring\": false,
@@ -110,7 +122,7 @@ main() {
     
     log_info "Droplet created with ID: $DROPLET_ID"
     
-    # Step 2: Wait for droplet to be ready
+    # Step 3: Wait for droplet to be ready
     log_info "Waiting for droplet to be ready..."
     ATTEMPTS=0
     MAX_ATTEMPTS=60
@@ -120,8 +132,9 @@ main() {
             -H "Authorization: Bearer $DO_TOKEN" | jq -r '.droplet.status')
         
         if [ "$STATUS" == "active" ]; then
+            # Get the public IP (v4[1] is public, v4[0] is private)
             DROPLET_IP=$(curl -s -X GET "https://api.digitalocean.com/v2/droplets/$DROPLET_ID" \
-                -H "Authorization: Bearer $DO_TOKEN" | jq -r '.droplet.networks.v4[0].ip_address')
+                -H "Authorization: Bearer $DO_TOKEN" | jq -r '.droplet.networks.v4[] | select(.type=="public") | .ip_address')
             
             if [ ! -z "$DROPLET_IP" ] && [ "$DROPLET_IP" != "null" ]; then
                 log_info "Droplet is active with IP: $DROPLET_IP"
@@ -140,7 +153,7 @@ main() {
         exit 1
     fi
     
-    # Step 3: Wait for SSH to be ready
+    # Step 4: Wait for SSH to be ready
     log_info "Waiting for SSH to be ready..."
     ATTEMPTS=0
     MAX_ATTEMPTS=30
@@ -162,12 +175,12 @@ main() {
         exit 1
     fi
     
-    # Step 4: Install wget (needed for CentOS)
+    # Step 5: Install wget (needed for CentOS)
     log_info "Installing wget on droplet..."
     ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
         -i "$SSH_KEY" "root@$DROPLET_IP" "dnf install -y wget" || true
     
-    # Step 5: Run quickinstall script
+    # Step 6: Run quickinstall script
     log_info "Running GoMail quickinstall script..."
     
     # Create a wrapper script to capture output and exit code
@@ -232,7 +245,7 @@ EOF
         exit 1
     fi
     
-    # Step 6: Test services
+    # Step 7: Test services
     log_info "Testing GoMail services..."
     
     ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
@@ -265,7 +278,7 @@ echo "Testing mail configuration..."
 /usr/local/bin/gomail test 2>/dev/null || echo "Mail test failed"
 EOF
     
-    # Step 7: Test web admin
+    # Step 8: Test web admin
     log_info "Testing Web Admin interface..."
     
     # Get the bearer token

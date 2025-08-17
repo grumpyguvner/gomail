@@ -118,7 +118,6 @@ func TestConnectionThrottle_UpdateRates(t *testing.T) {
 
 func TestConnectionThrottle_Cleanup(t *testing.T) {
 	throttle := NewConnectionThrottle(10, 5)
-	throttle.cleanupPeriod = 50 * time.Millisecond // Short period for testing
 
 	// Add some IPs
 	throttle.Allow("192.168.1.1:1234")
@@ -128,8 +127,14 @@ func TestConnectionThrottle_Cleanup(t *testing.T) {
 	stats := throttle.GetStats()
 	assert.Equal(t, 3, stats.ActiveIPs)
 
-	// Wait for cleanup
-	time.Sleep(100 * time.Millisecond)
+	// Manually set IPs as old by modifying their lastSeen time
+	throttle.mu.Lock()
+	for _, limiter := range throttle.ipLimiters {
+		limiter.lastSeen = time.Now().Add(-10 * time.Minute)
+	}
+	throttle.mu.Unlock()
+
+	// Manually trigger cleanup for testing
 	throttle.cleanup()
 
 	// Old IPs should be cleaned up

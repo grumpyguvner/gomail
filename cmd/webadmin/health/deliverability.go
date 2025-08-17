@@ -205,11 +205,7 @@ func (c *DeliverabilityChecker) isDomainSuspicious(domain string) bool {
 
 	// Domains with excessive hyphens
 	hyphens := strings.Count(domain, "-")
-	if hyphens > 3 {
-		return true
-	}
-
-	return false
+	return hyphens > 3
 }
 
 func (c *DeliverabilityChecker) checkMXRecordDeliverability(domain string, health *DeliverabilityHealth) {
