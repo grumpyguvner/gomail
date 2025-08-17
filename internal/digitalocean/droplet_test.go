@@ -33,7 +33,7 @@ func TestListDroplets(t *testing.T) {
 				}
 			]
 		}`
-		w.Write([]byte(response))
+		_, _ = w.Write([]byte(response))
 	}))
 	defer server.Close()
 
@@ -57,7 +57,7 @@ func TestRenameDroplet(t *testing.T) {
 		assert.Equal(t, "PUT", r.Method)
 
 		var body map[string]string
-		json.NewDecoder(r.Body).Decode(&body)
+		_ = json.NewDecoder(r.Body).Decode(&body)
 		assert.Equal(t, "mail.example.com", body["name"])
 
 		w.WriteHeader(200)
@@ -96,11 +96,11 @@ func TestSetupPTRRecord(t *testing.T) {
 						}
 					}]
 				}`
-				w.Write([]byte(response))
+				_, _ = w.Write([]byte(response))
 			} else if r.URL.Path == "/v2/droplets/456" && r.Method == "PUT" {
 				// Rename request
 				var body map[string]string
-				json.NewDecoder(r.Body).Decode(&body)
+				_ = json.NewDecoder(r.Body).Decode(&body)
 				assert.Equal(t, "mail.example.com", body["name"])
 				w.WriteHeader(200)
 			}
@@ -136,7 +136,7 @@ func TestSetupPTRRecord(t *testing.T) {
 						}
 					}]
 				}`
-				w.Write([]byte(response))
+				_, _ = w.Write([]byte(response))
 			} else {
 				t.Errorf("Unexpected request: %s %s", r.Method, r.URL.Path)
 			}
@@ -177,7 +177,7 @@ func TestGetDropletPublicIP(t *testing.T) {
 				}
 			}
 		}`
-		w.Write([]byte(response))
+		_, _ = w.Write([]byte(response))
 	}))
 	defer server.Close()
 
@@ -208,7 +208,7 @@ func TestGetDropletPublicIP_NoPublicIP(t *testing.T) {
 				}
 			}
 		}`
-		w.Write([]byte(response))
+		_, _ = w.Write([]byte(response))
 	}))
 	defer server.Close()
 

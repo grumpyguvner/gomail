@@ -2,8 +2,10 @@ package digitalocean
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -52,7 +54,7 @@ func TestCheckDomainExists(t *testing.T) {
 				assert.Equal(t, "Bearer test-token", r.Header.Get("Authorization"))
 
 				w.WriteHeader(tt.statusCode)
-				w.Write([]byte(tt.response))
+				_, _ = w.Write([]byte(tt.response))
 			}))
 			defer server.Close()
 
@@ -107,12 +109,12 @@ func TestCreateDomain(t *testing.T) {
 				assert.Equal(t, "POST", r.Method)
 
 				var body map[string]string
-				json.NewDecoder(r.Body).Decode(&body)
+				_ = json.NewDecoder(r.Body).Decode(&body)
 				assert.Equal(t, tt.domain, body["name"])
 				assert.Equal(t, tt.ip, body["ip_address"])
 
 				w.WriteHeader(tt.statusCode)
-				w.Write([]byte(tt.response))
+				_, _ = w.Write([]byte(tt.response))
 			}))
 			defer server.Close()
 
@@ -141,20 +143,20 @@ func TestUpsertDNSRecord(t *testing.T) {
 				// First call: get existing records (none found)
 				assert.Equal(t, "/v2/domains/example.com/records", r.URL.Path)
 				assert.Equal(t, "GET", r.Method)
-				w.Write([]byte(`{"domain_records": []}`))
+				_, _ = w.Write([]byte(`{"domain_records": []}`))
 			} else {
 				// Second call: create new record
 				assert.Equal(t, "/v2/domains/example.com/records", r.URL.Path)
 				assert.Equal(t, "POST", r.Method)
 
 				var record DNSRecord
-				json.NewDecoder(r.Body).Decode(&record)
+				_ = json.NewDecoder(r.Body).Decode(&record)
 				assert.Equal(t, "MX", record.Type)
 				assert.Equal(t, "@", record.Name)
 				assert.Equal(t, "mail.example.com.", record.Data)
 				assert.Equal(t, 10, record.Priority)
 
-				w.Write([]byte(`{"domain_record": {"id": 123, "type": "MX", "name": "@"}}`))
+				_, _ = w.Write([]byte(`{"domain_record": {"id": 123, "type": "MX", "name": "@"}}`))
 			}
 		}))
 		defer server.Close()
@@ -185,7 +187,7 @@ func TestUpsertDNSRecord(t *testing.T) {
 				// First call: get existing records (one found)
 				assert.Equal(t, "/v2/domains/example.com/records", r.URL.Path)
 				assert.Equal(t, "GET", r.Method)
-				w.Write([]byte(`{
+				_, _ = w.Write([]byte(`{
 					"domain_records": [
 						{"id": 456, "type": "MX", "name": "@", "data": "old.example.com.", "priority": 20}
 					]
@@ -196,13 +198,13 @@ func TestUpsertDNSRecord(t *testing.T) {
 				assert.Equal(t, "PUT", r.Method)
 
 				var record DNSRecord
-				json.NewDecoder(r.Body).Decode(&record)
+				_ = json.NewDecoder(r.Body).Decode(&record)
 				assert.Equal(t, 456, record.ID)
 				assert.Equal(t, "MX", record.Type)
 				assert.Equal(t, "@", record.Name)
 				assert.Equal(t, "mail.example.com.", record.Data)
 
-				w.Write([]byte(`{"domain_record": {"id": 456, "type": "MX", "name": "@"}}`))
+				_, _ = w.Write([]byte(`{"domain_record": {"id": 456, "type": "MX", "name": "@"}}`))
 			}
 		}))
 		defer server.Close()
@@ -235,11 +237,11 @@ func TestSetupMailDNS(t *testing.T) {
 			w.WriteHeader(404) // Domain doesn't exist
 		} else if r.URL.Path == "/v2/domains" && r.Method == "POST" {
 			w.WriteHeader(201)
-			w.Write([]byte(`{"domain": {"name": "example.com"}}`))
+			_, _ = w.Write([]byte(`{"domain": {"name": "example.com"}}`))
 		} else if r.URL.Path == "/v2/domains/example.com/records" && r.Method == "GET" {
-			w.Write([]byte(`{"domain_records": []}`)) // No existing records
+			_, _ = w.Write([]byte(`{"domain_records": []}`)) // No existing records
 		} else if r.URL.Path == "/v2/domains/example.com/records" && r.Method == "POST" {
-			w.Write([]byte(`{"domain_record": {"id": 1}}`))
+			_, _ = w.Write([]byte(`{"domain_record": {"id": 1}}`))
 		}
 	}))
 	defer server.Close()
@@ -254,10 +256,10 @@ func TestSetupMailDNS(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify the expected API calls were made
-	assert.Contains(t, requestLog, "GET /v2/domains/example.com")   // Check domain
-	assert.Contains(t, requestLog, "POST /v2/domains")              // Create domain
+	assert.Contains(t, requestLog, "GET /v2/domains/example.com")         // Check domain
+	assert.Contains(t, requestLog, "POST /v2/domains")                    // Create domain
 	assert.Contains(t, requestLog, "GET /v2/domains/example.com/records") // Check for existing records
-	
+
 	// Should create A, MX, SPF, and DMARC records
 	postCount := 0
 	for _, req := range requestLog {
@@ -266,4 +268,66 @@ func TestSetupMailDNS(t *testing.T) {
 		}
 	}
 	assert.Equal(t, 4, postCount, "Should create 4 DNS records (A, MX, SPF, DMARC)")
+}
+
+func TestCleanupLegacyARecords(t *testing.T) {
+	deletedRecords := []int{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v2/domains/example.com/records" && r.Method == "GET" {
+			// Return some legacy A records
+			_, _ = w.Write([]byte(`{
+				"domain_records": [
+					{"id": 1, "type": "A", "name": "@", "data": "192.168.1.1"},
+					{"id": 2, "type": "A", "name": "mail", "data": "192.168.1.1"},
+					{"id": 3, "type": "A", "name": "old-droplet", "data": "192.168.1.1"},
+					{"id": 4, "type": "A", "name": "legacy", "data": "192.168.1.1"},
+					{"id": 5, "type": "MX", "name": "@", "data": "mail.example.com."}
+				]
+			}`))
+		} else if strings.HasPrefix(r.URL.Path, "/v2/domains/example.com/records/") && r.Method == "DELETE" {
+			// Extract record ID from path
+			parts := strings.Split(r.URL.Path, "/")
+			if len(parts) > 0 {
+				var recordID int
+				_, _ = fmt.Sscanf(parts[len(parts)-1], "%d", &recordID)
+				deletedRecords = append(deletedRecords, recordID)
+			}
+			w.WriteHeader(204)
+		}
+	}))
+	defer server.Close()
+
+	client := &Client{
+		token:      "test-token",
+		baseURL:    server.URL + "/v2",
+		httpClient: &http.Client{},
+	}
+
+	err := client.CleanupLegacyARecords("example.com", "192.168.1.1")
+	require.NoError(t, err)
+
+	// Should delete legacy records (3, 4) but keep @ and mail records (1, 2)
+	assert.Contains(t, deletedRecords, 3, "Should delete old-droplet A record")
+	assert.Contains(t, deletedRecords, 4, "Should delete legacy A record")
+	assert.NotContains(t, deletedRecords, 1, "Should not delete @ A record")
+	assert.NotContains(t, deletedRecords, 2, "Should not delete mail A record")
+	assert.NotContains(t, deletedRecords, 5, "Should not delete MX record")
+}
+
+func TestDeleteDNSRecord(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/v2/domains/example.com/records/123", r.URL.Path)
+		assert.Equal(t, "DELETE", r.Method)
+		w.WriteHeader(204)
+	}))
+	defer server.Close()
+
+	client := &Client{
+		token:      "test-token",
+		baseURL:    server.URL + "/v2",
+		httpClient: &http.Client{},
+	}
+
+	err := client.DeleteDNSRecord("example.com", 123)
+	assert.NoError(t, err)
 }

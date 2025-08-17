@@ -162,6 +162,13 @@ func (c *Client) SetupMailDNS(domain, mailHostname, serverIP string) error {
 		if err := c.CreateDomain(domain, serverIP); err != nil {
 			return fmt.Errorf("failed to create domain: %w", err)
 		}
+	} else {
+		// Clean up any legacy A records pointing to this IP
+		// This helps avoid conflicts when the droplet has been renamed
+		if err := c.CleanupLegacyARecords(domain, serverIP); err != nil {
+			// Log but don't fail
+			fmt.Printf("Warning: failed to cleanup legacy records: %v\n", err)
+		}
 	}
 
 	// Extract mail subdomain (e.g., "mail" from "mail.example.com")
@@ -226,6 +233,42 @@ func (c *Client) SetupMailDNS(domain, mailHostname, serverIP string) error {
 	return nil
 }
 
+// DeleteDNSRecord deletes a DNS record
+func (c *Client) DeleteDNSRecord(domain string, recordID int) error {
+	path := fmt.Sprintf("/domains/%s/records/%d", domain, recordID)
+	_, err := c.doRequest("DELETE", path, nil)
+	if err != nil {
+		return fmt.Errorf("failed to delete DNS record: %w", err)
+	}
+	return nil
+}
+
+// CleanupLegacyARecords removes any A records pointing to the given IP
+func (c *Client) CleanupLegacyARecords(domain, serverIP string) error {
+	records, err := c.GetDNSRecords(domain)
+	if err != nil {
+		return fmt.Errorf("failed to get DNS records: %w", err)
+	}
+
+	for _, record := range records {
+		// Delete any A records that point to our IP but aren't for our mail hostname
+		if record.Type == "A" && record.Data == serverIP {
+			// We'll keep the record if it's for the mail subdomain
+			// Otherwise, delete it as it's likely a legacy record
+			if record.Name == "@" || strings.HasPrefix(record.Name, "mail") {
+				continue // Keep mail-related A records
+			}
+
+			if err := c.DeleteDNSRecord(domain, record.ID); err != nil {
+				// Log but don't fail the whole operation
+				fmt.Printf("Warning: failed to delete legacy A record %s: %v\n", record.Name, err)
+			}
+		}
+	}
+
+	return nil
+}
+
 // SetupInfraDNS sets up DNS for the infrastructure domain (where mail server hostname lives)
 func (c *Client) SetupInfraDNS(infraDomain, mailHostname, serverIP string) error {
 	// Ensure domain exists
@@ -237,6 +280,12 @@ func (c *Client) SetupInfraDNS(infraDomain, mailHostname, serverIP string) error
 	if !exists {
 		if err := c.CreateDomain(infraDomain, serverIP); err != nil {
 			return fmt.Errorf("failed to create domain: %w", err)
+		}
+	} else {
+		// Clean up any legacy A records pointing to this IP
+		if err := c.CleanupLegacyARecords(infraDomain, serverIP); err != nil {
+			// Log but don't fail
+			fmt.Printf("Warning: failed to cleanup legacy records: %v\n", err)
 		}
 	}
 

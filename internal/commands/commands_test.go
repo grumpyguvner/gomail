@@ -161,7 +161,7 @@ func TestDNSSetupCommand(t *testing.T) {
 	cmd := newDNSSetupCommand()
 	assert.NotNil(t, cmd)
 	assert.Equal(t, "setup [domain]", cmd.Use)
-	assert.Equal(t, "Setup DNS records for a domain", cmd.Short)
+	assert.Equal(t, "Alias for 'dns create' command", cmd.Short)
 }
 
 func TestDNSCheckCommand(t *testing.T) {

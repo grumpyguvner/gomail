@@ -18,7 +18,6 @@ type MockStorage struct {
 	retrieveFunc func(ctx context.Context, emailID string) ([]byte, error)
 	listFunc     func(ctx context.Context) ([]string, error)
 	deleteFunc   func(ctx context.Context, emailID string) error
-	closed       bool
 }
 
 func (m *MockStorage) Store(ctx context.Context, emailID string, data []byte) (string, error) {

@@ -11,9 +11,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// mockExecCommand is used to mock exec.Command in tests
-var mockExecCommand = exec.Command
-
 func TestConfigurePostfix(t *testing.T) {
 	// Skip if not running integration tests
 	if os.Getenv("INTEGRATION_TEST") != "true" {
@@ -35,7 +32,7 @@ func TestConfigurePostfixSettings(t *testing.T) {
 	t.Run("includes all required settings", func(t *testing.T) {
 		// This test verifies that the settings map includes all required configurations
 		// We'll need to expose the settings for testing or refactor the method
-		
+
 		// Expected settings that should be configured
 		expectedSettings := []string{
 			"myhostname",
@@ -60,17 +57,17 @@ func TestConfigurePostfixSettings(t *testing.T) {
 		// Since the settings are defined inside the configurePostfix method,
 		// we need to refactor to make them testable
 		// For now, we can at least verify the code includes the right string
-		
+
 		// Read the installer source to verify the setting exists
 		source, err := os.ReadFile("installer.go")
 		require.NoError(t, err)
-		
+
 		sourceStr := string(source)
-		
+
 		// Check that smtpd_client_restrictions is configured
 		assert.Contains(t, sourceStr, `"smtpd_client_restrictions"`)
 		assert.Contains(t, sourceStr, `"permit_mynetworks,reject_unknown_reverse_client_hostname"`)
-		
+
 		// Verify all expected settings are present in the source
 		for _, setting := range expectedSettings {
 			assert.Contains(t, sourceStr, `"`+setting+`"`, "Missing setting: %s", setting)
@@ -81,15 +78,15 @@ func TestConfigurePostfixSettings(t *testing.T) {
 func TestPostfixCommandExecution(t *testing.T) {
 	// This test would verify that postconf commands are executed correctly
 	// In a real test environment, we'd mock exec.Command
-	
+
 	t.Run("verify postconf command format", func(t *testing.T) {
 		// Test that the command would be formatted correctly
 		key := "smtpd_client_restrictions"
 		value := "permit_mynetworks,reject_unknown_reverse_client_hostname"
-		
+
 		expectedCmd := "postconf"
 		expectedArgs := []string{"-e", key + "=" + value}
-		
+
 		// Verify the command construction
 		assert.Equal(t, expectedCmd, "postconf")
 		assert.Equal(t, expectedArgs[0], "-e")
@@ -110,11 +107,11 @@ func TestInstaller_Integration(t *testing.T) {
 	}
 
 	cfg := &config.Config{
-		MailHostname:   "mail.test.local",
-		PrimaryDomain:  "test.local",
-		BearerToken:    "test-token-12345678",
-		DataDir:        "/tmp/mailserver-test",
-		APIEndpoint:    "http://localhost:3000/webhook",
+		MailHostname:  "mail.test.local",
+		PrimaryDomain: "test.local",
+		BearerToken:   "test-token-12345678",
+		DataDir:       "/tmp/mailserver-test",
+		APIEndpoint:   "http://localhost:3000/webhook",
 	}
 
 	installer := NewInstaller(cfg)
@@ -143,7 +140,7 @@ func TestInstaller_Integration(t *testing.T) {
 		outputStr := string(output)
 		assert.Contains(t, outputStr, "permit_mynetworks")
 		assert.Contains(t, outputStr, "reject_unknown_reverse_client_hostname")
-		
+
 		// Save original config for reference
 		t.Logf("Original config saved. Length: %d bytes", len(originalConfig))
 	})
@@ -161,7 +158,7 @@ func TestReverseClientHostnameRejection(t *testing.T) {
 		// 1. A running Postfix instance with our configuration
 		// 2. Attempting SMTP connection from an IP without reverse DNS
 		// 3. Verifying the connection is rejected with appropriate error
-		
+
 		// This is typically done in integration/e2e tests rather than unit tests
 		t.Skip("Requires full SMTP test environment")
 	})

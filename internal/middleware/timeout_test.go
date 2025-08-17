@@ -19,7 +19,7 @@ func TestTimeoutMiddleware(t *testing.T) {
 		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			time.Sleep(10 * time.Millisecond)
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("success"))
+			_, _ = w.Write([]byte("success"))
 		})
 
 		middleware := TimeoutMiddleware(100 * time.Millisecond)
@@ -42,7 +42,7 @@ func TestTimeoutMiddleware(t *testing.T) {
 				return
 			case <-time.After(200 * time.Millisecond):
 				w.WriteHeader(http.StatusOK)
-				w.Write([]byte("should not appear"))
+				_, _ = w.Write([]byte("should not appear"))
 			}
 		})
 
@@ -82,7 +82,7 @@ func TestTimeoutMiddleware(t *testing.T) {
 			time.Sleep(60 * time.Millisecond)
 			// Try to write after timeout
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("late response"))
+			_, _ = w.Write([]byte("late response"))
 		})
 
 		middleware := TimeoutMiddleware(30 * time.Millisecond)
@@ -216,7 +216,7 @@ func TestTimeoutWriter(t *testing.T) {
 func BenchmarkTimeoutMiddleware(b *testing.B) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
+		_, _ = w.Write([]byte("ok"))
 	})
 
 	middleware := TimeoutMiddleware(100 * time.Millisecond)

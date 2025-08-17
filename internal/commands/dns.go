@@ -248,7 +248,7 @@ func newDNSShowCommand() *cobra.Command {
 
 			logger.Infof("Required DNS records for %s:\n", domain)
 			logger.Info("================================================")
-			
+
 			// Show infrastructure domain records if different
 			infraDomain := getBaseDomain(cfg.MailHostname)
 			if infraDomain != "" && infraDomain != domain {
