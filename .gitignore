@@ -63,3 +63,10 @@ CLAUDE.md
 # Archived documentation
 archivedDocs/
 test-droplet-access.txt
+run-test.sh
+test-*.sh
+*-access.txt
+*.token
+*.key
+*.pem
+.env*
