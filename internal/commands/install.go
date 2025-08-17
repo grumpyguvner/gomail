@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/grumpyguvner/gomail/internal/config"
@@ -287,6 +288,35 @@ func installWebAdminService(cfg *config.Config) error {
 		return fmt.Errorf("failed to create webadmin directory: %w", err)
 	}
 
+	// Create SSL directory and generate self-signed certificate
+	sslDir := "/etc/mailserver/ssl"
+	if err := os.MkdirAll(sslDir, 0755); err != nil {
+		return fmt.Errorf("failed to create SSL directory: %w", err)
+	}
+
+	// Generate self-signed certificate for initial setup
+	certPath := filepath.Join(sslDir, "cert.pem")
+	keyPath := filepath.Join(sslDir, "key.pem")
+	
+	// Check if certificates already exist
+	if _, err := os.Stat(certPath); os.IsNotExist(err) {
+		logger.Info("Generating self-signed SSL certificate for WebAdmin...")
+		cmd := exec.Command("openssl", "req", "-x509", "-newkey", "rsa:4096",
+			"-keyout", keyPath, "-out", certPath,
+			"-days", "365", "-nodes",
+			"-subj", fmt.Sprintf("/CN=%s", cfg.MailHostname))
+		if err := cmd.Run(); err != nil {
+			logger.Warnf("Warning: failed to generate SSL certificate: %v", err)
+			logger.Info("WebAdmin will need SSL certificates to be manually configured")
+		} else {
+			logger.Info("✓ Self-signed SSL certificate generated")
+		}
+		
+		// Set proper permissions
+		os.Chmod(certPath, 0644)
+		os.Chmod(keyPath, 0600)
+	}
+
 	// Install systemd service for webadmin
 	serviceContent := `[Unit]
 Description=GoMail Web Administration Interface
@@ -318,10 +348,12 @@ WantedBy=multi-user.target
 	}
 
 	// Create environment file for webadmin
+	// Note: Using port 8080 and HTTP for initial setup, can be changed to 443/HTTPS later
 	webadminEnv := fmt.Sprintf(`# GoMail WebAdmin Environment Configuration
-WEBADMIN_PORT=443
-WEBADMIN_SSL_CERT=/etc/mailserver/ssl/cert.pem
-WEBADMIN_SSL_KEY=/etc/mailserver/ssl/key.pem
+WEBADMIN_PORT=8080
+# For HTTPS, uncomment these and change port to 443:
+# WEBADMIN_SSL_CERT=/etc/mailserver/ssl/cert.pem
+# WEBADMIN_SSL_KEY=/etc/mailserver/ssl/key.pem
 WEBADMIN_STATIC_DIR=%s
 WEBADMIN_GOMAIL_API_URL=http://localhost:%d
 WEBADMIN_BEARER_TOKEN=%s
@@ -338,8 +370,9 @@ MAIL_BEARER_TOKEN=%s
 		return fmt.Errorf("failed to reload systemd: %w", err)
 	}
 
-	logger.Info("WebAdmin service installed. Access at https://your-domain/")
+	logger.Info("WebAdmin service installed. Access at http://your-server:8080/")
 	logger.Infof("Use bearer token for authentication: %s", cfg.BearerToken)
+	logger.Info("Note: Default configuration uses HTTP on port 8080. For production, configure HTTPS on port 443.")
 
 	return nil
 }
