@@ -59,3 +59,6 @@ nancy-report.json
 # Claude IDE
 .claude/
 CLAUDE.md
+
+# Archived documentation
+archivedDocs/
