@@ -297,7 +297,7 @@ func installWebAdminService(cfg *config.Config) error {
 	// Generate self-signed certificate for initial setup
 	certPath := filepath.Join(sslDir, "cert.pem")
 	keyPath := filepath.Join(sslDir, "key.pem")
-	
+
 	// Check if certificates already exist
 	if _, err := os.Stat(certPath); os.IsNotExist(err) {
 		logger.Info("Generating self-signed SSL certificate for WebAdmin...")
@@ -311,7 +311,7 @@ func installWebAdminService(cfg *config.Config) error {
 		} else {
 			logger.Info("✓ Self-signed SSL certificate generated")
 		}
-		
+
 		// Set proper permissions
 		os.Chmod(certPath, 0644)
 		os.Chmod(keyPath, 0600)
