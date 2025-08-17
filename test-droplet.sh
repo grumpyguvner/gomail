@@ -42,18 +42,18 @@ cleanup() {
         log_info "Droplet deleted"
     fi
     
-    # Clean up DNS records
+    # Clean up DNS records (except NS and SOA which are required)
     if [ ! -z "$TEST_DOMAIN" ]; then
         log_info "Cleaning up DNS records for $TEST_DOMAIN..."
-        # Get all DNS records
+        # Get all DNS records except NS and SOA
         RECORDS=$(curl -s -X GET "https://api.digitalocean.com/v2/domains/$TEST_DOMAIN/records" \
-            -H "Authorization: Bearer $DO_TOKEN" | jq -r '.domain_records[] | "\(.id)"')
+            -H "Authorization: Bearer $DO_TOKEN" | jq -r '.domain_records[] | select(.type != "NS" and .type != "SOA") | "\(.id)"')
         
         for RECORD_ID in $RECORDS; do
             curl -s -X DELETE "https://api.digitalocean.com/v2/domains/$TEST_DOMAIN/records/$RECORD_ID" \
-                -H "Authorization: Bearer $DO_TOKEN"
+                -H "Authorization: Bearer $DO_TOKEN" 2>/dev/null
         done
-        log_info "DNS records cleaned"
+        log_info "DNS records cleaned (NS and SOA preserved)"
     fi
 }
 
