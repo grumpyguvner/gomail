@@ -1,8 +1,9 @@
 #!/bin/bash
-set -e
+# Don't exit on error - we want to keep the droplet for debugging
+set +e
 
 # GoMail Droplet Test Script
-# This script creates a test droplet, tests installation, and cleans up
+# This script creates a test droplet, tests installation, and keeps it for testing
 
 # Configuration
 DO_TOKEN="${DO_TOKEN:-}"  # Must be set as environment variable
@@ -57,8 +58,11 @@ cleanup() {
     fi
 }
 
-# Set trap for cleanup on exit
-trap cleanup EXIT
+# Set trap for cleanup on exit (only if not keeping droplet)
+KEEP_DROPLET=${KEEP_DROPLET:-true}
+if [ "$KEEP_DROPLET" != "true" ]; then
+    trap cleanup EXIT
+fi
 
 # Main test process
 main() {
@@ -310,8 +314,9 @@ EOF
     log_info "========================================="
     log_info "SSH Access: ssh root@$DROPLET_IP"
     log_info "Domain: $TEST_DOMAIN"
+    log_info "Mail Hostname: mail.$TEST_DOMAIN"
     log_info "API: http://$DROPLET_IP:3000"
-    log_info "WebAdmin: https://$TEST_DOMAIN/ (or https://$DROPLET_IP/)"
+    log_info "WebAdmin: https://mail.$TEST_DOMAIN/ (or https://$DROPLET_IP/)"
     log_info "Bearer Token: $BEARER_TOKEN"
     log_info ""
     log_info "Useful commands:"
@@ -334,9 +339,10 @@ Created: $(date)
 Droplet ID: $DROPLET_ID
 IP Address: $DROPLET_IP
 Domain: $TEST_DOMAIN
+Mail Hostname: mail.$TEST_DOMAIN
 SSH: ssh root@$DROPLET_IP
 API: http://$DROPLET_IP:3000
-WebAdmin: https://$TEST_DOMAIN/
+WebAdmin: https://mail.$TEST_DOMAIN/ (or https://$DROPLET_IP/)
 Bearer Token: $BEARER_TOKEN
 
 Delete command:
