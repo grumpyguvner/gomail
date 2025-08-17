@@ -253,7 +253,7 @@ API_ENDPOINT=%s
 
 func installWebAdminService(cfg *config.Config) error {
 	logger := logging.Get()
-	
+
 	// Copy webadmin binary to /usr/local/bin if we're not already there
 	currentBinary, err := os.Executable()
 	if err != nil {
@@ -263,13 +263,13 @@ func installWebAdminService(cfg *config.Config) error {
 	// The webadmin binary should be built alongside the main binary
 	webAdminBinary := strings.Replace(currentBinary, "mailserver", "gomail-webadmin", 1)
 	targetBinary := "/usr/local/bin/gomail-webadmin"
-	
+
 	// Check if webadmin binary exists
 	if _, err := os.Stat(webAdminBinary); err != nil {
 		logger.Warnf("WebAdmin binary not found at %s, skipping", webAdminBinary)
 		return nil
 	}
-	
+
 	// Copy binary to system location
 	source, err := os.ReadFile(webAdminBinary)
 	if err != nil {
@@ -286,7 +286,7 @@ func installWebAdminService(cfg *config.Config) error {
 	if err := os.MkdirAll(webadminDir, 0755); err != nil {
 		return fmt.Errorf("failed to create webadmin directory: %w", err)
 	}
-	
+
 	// Install systemd service for webadmin
 	serviceContent := `[Unit]
 Description=GoMail Web Administration Interface
@@ -312,7 +312,7 @@ ReadWritePaths=/opt/gomail/webadmin
 [Install]
 WantedBy=multi-user.target
 `
-	
+
 	if err := os.WriteFile("/etc/systemd/system/gomail-webadmin.service", []byte(serviceContent), 0644); err != nil {
 		return fmt.Errorf("failed to write webadmin service file: %w", err)
 	}
@@ -337,10 +337,10 @@ MAIL_BEARER_TOKEN=%s
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to reload systemd: %w", err)
 	}
-	
+
 	logger.Info("WebAdmin service installed. Access at https://your-domain/")
 	logger.Infof("Use bearer token for authentication: %s", cfg.BearerToken)
-	
+
 	return nil
 }
 

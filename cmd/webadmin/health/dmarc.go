@@ -101,7 +101,7 @@ func (c *DMARCChecker) parseDMARCRecord(record string, health *DMARCHealth) {
 
 	// Parse key-value pairs
 	params := make(map[string]string)
-	
+
 	// Split by semicolon and parse key=value pairs
 	parts := strings.Split(record, ";")
 	for _, part := range parts {
@@ -245,20 +245,20 @@ func (c *DMARCChecker) parseDMARCRecord(record string, health *DMARCHealth) {
 func (c *DMARCChecker) validateReportingURI(uri, reportType string, health *DMARCHealth) {
 	// Split multiple URIs
 	uris := strings.Split(uri, ",")
-	
+
 	for _, u := range uris {
 		u = strings.TrimSpace(u)
-		
+
 		// Check URI format
 		if !strings.HasPrefix(u, "mailto:") {
 			health.Issues = append(health.Issues, "Invalid "+reportType+" reporting URI format: "+u)
 			health.Score -= 10
 			continue
 		}
-		
+
 		// Extract email address
 		email := strings.TrimPrefix(u, "mailto:")
-		
+
 		// Basic email validation
 		emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
 		if !emailRegex.MatchString(email) {

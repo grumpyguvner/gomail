@@ -65,7 +65,7 @@ func (c *DNSChecker) Check(domain string) DNSHealth {
 			health.Score -= 20
 		} else if len(ptrRecords) > 0 {
 			health.PTRRecord = ptrRecords[0]
-			
+
 			// Check if PTR record matches domain
 			if !strings.Contains(health.PTRRecord, domain) {
 				health.Issues = append(health.Issues, "PTR record does not match domain")
@@ -81,7 +81,7 @@ func (c *DNSChecker) Check(domain string) DNSHealth {
 	for _, mxHost := range health.MXRecords {
 		// Remove trailing dot
 		mxHost = strings.TrimSuffix(mxHost, ".")
-		
+
 		_, err := net.LookupHost(mxHost)
 		if err != nil {
 			health.Issues = append(health.Issues, "MX record points to invalid host: "+mxHost)
@@ -103,7 +103,7 @@ func (c *DNSChecker) Check(domain string) DNSHealth {
 		health.Status = "warning"
 	}
 
-	c.logger.Debug("DNS check completed", 
+	c.logger.Debug("DNS check completed",
 		"domain", domain,
 		"status", health.Status,
 		"score", health.Score,

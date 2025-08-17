@@ -11,26 +11,26 @@ import (
 type Config struct {
 	// Server configuration
 	Port int `json:"port" mapstructure:"port"`
-	
+
 	// SSL configuration
 	SSLCert string `json:"ssl_cert" mapstructure:"ssl_cert"`
 	SSLKey  string `json:"ssl_key" mapstructure:"ssl_key"`
-	
+
 	// Static files
 	StaticDir string `json:"static_dir" mapstructure:"static_dir"`
-	
+
 	// GoMail API configuration
-	GoMailAPIURL    string `json:"gomail_api_url" mapstructure:"gomail_api_url"`
-	BearerToken     string `json:"bearer_token" mapstructure:"bearer_token"`
-	
+	GoMailAPIURL string `json:"gomail_api_url" mapstructure:"gomail_api_url"`
+	BearerToken  string `json:"bearer_token" mapstructure:"bearer_token"`
+
 	// Health check configuration
 	HealthCheckInterval time.Duration `json:"health_check_interval" mapstructure:"health_check_interval"`
-	
+
 	// Timeout configuration (in seconds)
-	ReadTimeout    int `json:"read_timeout" mapstructure:"read_timeout"`
-	WriteTimeout   int `json:"write_timeout" mapstructure:"write_timeout"`
-	IdleTimeout    int `json:"idle_timeout" mapstructure:"idle_timeout"`
-	
+	ReadTimeout  int `json:"read_timeout" mapstructure:"read_timeout"`
+	WriteTimeout int `json:"write_timeout" mapstructure:"write_timeout"`
+	IdleTimeout  int `json:"idle_timeout" mapstructure:"idle_timeout"`
+
 	// Domain configuration
 	Domains map[string]DomainConfig `json:"domains" mapstructure:"domains"`
 }
@@ -134,15 +134,15 @@ func (c *Config) Validate() error {
 
 	// Validate domain configurations
 	for domain, domainCfg := range c.Domains {
-		if domainCfg.Action != "store" && domainCfg.Action != "forward" && 
-		   domainCfg.Action != "discard" && domainCfg.Action != "bounce" {
+		if domainCfg.Action != "store" && domainCfg.Action != "forward" &&
+			domainCfg.Action != "discard" && domainCfg.Action != "bounce" {
 			return fmt.Errorf("invalid action for domain %s: %s", domain, domainCfg.Action)
 		}
-		
+
 		if domainCfg.Action == "forward" && len(domainCfg.ForwardTo) == 0 {
 			return fmt.Errorf("forward_to is required for domain %s with forward action", domain)
 		}
-		
+
 		if domainCfg.Action == "bounce" && domainCfg.BounceMessage == "" {
 			return fmt.Errorf("bounce_message is required for domain %s with bounce action", domain)
 		}

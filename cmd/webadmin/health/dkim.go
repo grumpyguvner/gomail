@@ -150,7 +150,7 @@ func (c *DKIMChecker) checkDKIMSelector(domain, selector string) DKIMSelector {
 func (c *DKIMChecker) parseDKIMRecord(record string, selector *DKIMSelector) {
 	// Parse key-value pairs
 	params := make(map[string]string)
-	
+
 	// Split by semicolon and parse key=value pairs
 	parts := strings.Split(record, ";")
 	for _, part := range parts {

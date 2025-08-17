@@ -98,22 +98,22 @@ func (c *SPFChecker) parseSPFRecord(record string, health *SPFHealth) {
 	// Split record into mechanisms
 	parts := strings.Fields(record)
 	hasAll := false
-	
+
 	for _, part := range parts[1:] { // Skip "v=spf1"
 		// Check for include mechanisms
 		if strings.HasPrefix(part, "include:") {
 			includeDomain := strings.TrimPrefix(part, "include:")
 			health.Includes = append(health.Includes, includeDomain)
-			
+
 			// Validate included domain has SPF record
 			c.validateIncludedDomain(includeDomain, health)
 		}
-		
+
 		// Check for all mechanism
-		if strings.HasPrefix(part, "all") || strings.HasPrefix(part, "-all") || 
-		   strings.HasPrefix(part, "~all") || strings.HasPrefix(part, "+all") {
+		if strings.HasPrefix(part, "all") || strings.HasPrefix(part, "-all") ||
+			strings.HasPrefix(part, "~all") || strings.HasPrefix(part, "+all") {
 			hasAll = true
-			
+
 			// Check all mechanism policy
 			switch part {
 			case "-all":
@@ -132,32 +132,32 @@ func (c *SPFChecker) parseSPFRecord(record string, health *SPFHealth) {
 				health.Score -= 20
 			}
 		}
-		
+
 		// Check for IP4/IP6 mechanisms
 		if strings.HasPrefix(part, "ip4:") || strings.HasPrefix(part, "ip6:") {
 			c.validateIPMechanism(part, health)
 		}
-		
+
 		// Check for a/mx mechanisms
 		if strings.HasPrefix(part, "a:") || strings.HasPrefix(part, "mx:") || part == "a" || part == "mx" {
 			c.validateDomainMechanism(part, health)
 		}
 	}
-	
+
 	if !hasAll {
 		health.Issues = append(health.Issues, "SPF record missing all mechanism")
 		health.Score -= 20
 	}
-	
+
 	// Check for too many DNS lookups (RFC limit is 10)
 	dnsLookups := len(health.Includes)
 	for _, part := range parts {
-		if strings.HasPrefix(part, "a") || strings.HasPrefix(part, "mx") || 
-		   strings.HasPrefix(part, "exists:") {
+		if strings.HasPrefix(part, "a") || strings.HasPrefix(part, "mx") ||
+			strings.HasPrefix(part, "exists:") {
 			dnsLookups++
 		}
 	}
-	
+
 	if dnsLookups > 10 {
 		health.Issues = append(health.Issues, "SPF record exceeds 10 DNS lookup limit")
 		health.Score -= 25
@@ -165,7 +165,7 @@ func (c *SPFChecker) parseSPFRecord(record string, health *SPFHealth) {
 		health.Issues = append(health.Issues, "SPF record close to 10 DNS lookup limit")
 		health.Score -= 10
 	}
-	
+
 	// Check record length (recommended under 255 characters)
 	if len(record) > 255 {
 		health.Issues = append(health.Issues, "SPF record exceeds recommended 255 character limit")
@@ -181,7 +181,7 @@ func (c *SPFChecker) validateIncludedDomain(domain string, health *SPFHealth) {
 		health.Score -= 15
 		return
 	}
-	
+
 	hasSpf := false
 	for _, record := range txtRecords {
 		if strings.HasPrefix(record, "v=spf1") {
@@ -189,7 +189,7 @@ func (c *SPFChecker) validateIncludedDomain(domain string, health *SPFHealth) {
 			break
 		}
 	}
-	
+
 	if !hasSpf {
 		health.Issues = append(health.Issues, "Included domain has no SPF record: "+domain)
 		health.Score -= 20
@@ -204,10 +204,10 @@ func (c *SPFChecker) validateIPMechanism(mechanism string, health *SPFHealth) {
 		health.Score -= 10
 		return
 	}
-	
+
 	// Parse IP address
 	ipStr := parts[1]
-	
+
 	// Handle CIDR notation
 	if strings.Contains(ipStr, "/") {
 		_, _, err := net.ParseCIDR(ipStr)
@@ -227,18 +227,18 @@ func (c *SPFChecker) validateIPMechanism(mechanism string, health *SPFHealth) {
 func (c *SPFChecker) validateDomainMechanism(mechanism string, health *SPFHealth) {
 	// For a: and mx: mechanisms, validate the domain resolves
 	var domain string
-	
+
 	if mechanism == "a" || mechanism == "mx" {
 		// These use the current domain
 		return
 	}
-	
+
 	if strings.HasPrefix(mechanism, "a:") {
 		domain = strings.TrimPrefix(mechanism, "a:")
 	} else if strings.HasPrefix(mechanism, "mx:") {
 		domain = strings.TrimPrefix(mechanism, "mx:")
 	}
-	
+
 	if domain != "" {
 		// Check if domain is valid format
 		domainRegex := regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?)*$`)

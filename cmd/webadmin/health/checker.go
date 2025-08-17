@@ -20,24 +20,24 @@ type CachedResult struct {
 }
 
 type DomainHealth struct {
-	Domain         string                 `json:"domain"`
-	LastChecked    time.Time             `json:"last_checked"`
-	OverallScore   int                   `json:"overall_score"` // 0-100
-	DNS            DNSHealth             `json:"dns"`
-	SPF            SPFHealth             `json:"spf"`
-	DKIM           DKIMHealth            `json:"dkim"`
-	DMARC          DMARCHealth           `json:"dmarc"`
-	SSL            SSLHealth             `json:"ssl"`
-	Deliverability DeliverabilityHealth  `json:"deliverability"`
+	Domain         string               `json:"domain"`
+	LastChecked    time.Time            `json:"last_checked"`
+	OverallScore   int                  `json:"overall_score"` // 0-100
+	DNS            DNSHealth            `json:"dns"`
+	SPF            SPFHealth            `json:"spf"`
+	DKIM           DKIMHealth           `json:"dkim"`
+	DMARC          DMARCHealth          `json:"dmarc"`
+	SSL            SSLHealth            `json:"ssl"`
+	Deliverability DeliverabilityHealth `json:"deliverability"`
 }
 
 type DNSHealth struct {
-	Status     string   `json:"status"` // "healthy", "warning", "error"
-	ARecords   []string `json:"a_records"`
-	MXRecords  []string `json:"mx_records"`
-	PTRRecord  string   `json:"ptr_record"`
-	Issues     []string `json:"issues"`
-	Score      int      `json:"score"` // 0-100
+	Status    string   `json:"status"` // "healthy", "warning", "error"
+	ARecords  []string `json:"a_records"`
+	MXRecords []string `json:"mx_records"`
+	PTRRecord string   `json:"ptr_record"`
+	Issues    []string `json:"issues"`
+	Score     int      `json:"score"` // 0-100
 }
 
 type SPFHealth struct {
@@ -174,8 +174,8 @@ func (c *Checker) RefreshDomain(domain string) (*DomainHealth, error) {
 	}
 	c.mutex.Unlock()
 
-	c.logger.Info("Health check completed", 
-		"domain", domain, 
+	c.logger.Info("Health check completed",
+		"domain", domain,
 		"score", health.OverallScore,
 		"dns_status", health.DNS.Status,
 		"spf_status", health.SPF.Status,

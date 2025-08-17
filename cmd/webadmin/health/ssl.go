@@ -32,7 +32,7 @@ func (c *SSLChecker) Check(domain string) SSLHealth {
 
 	// Common mail ports to check SSL
 	ports := []string{"465", "587", "993", "995"}
-	
+
 	for _, port := range ports {
 		cert, err := c.getSSLCertificate(domain, port)
 		if err != nil {
@@ -44,7 +44,7 @@ func (c *SSLChecker) Check(domain string) SSLHealth {
 			health.Valid = true
 			health.Expiry = cert.NotAfter
 			health.DaysLeft = int(time.Until(cert.NotAfter).Hours() / 24)
-			
+
 			if len(cert.Issuer.Organization) > 0 {
 				health.Issuer = cert.Issuer.Organization[0]
 			} else {
@@ -151,12 +151,12 @@ func (c *SSLChecker) validateCertificate(cert *x509.Certificate, domain string, 
 
 	// Check domain name validation
 	domainMatches := false
-	
+
 	// Check CommonName
 	if leafCert.Subject.CommonName == domain {
 		domainMatches = true
 	}
-	
+
 	// Check Subject Alternative Names
 	for _, san := range leafCert.DNSNames {
 		if san == domain || san == "*."+domain {
@@ -164,7 +164,7 @@ func (c *SSLChecker) validateCertificate(cert *x509.Certificate, domain string, 
 			break
 		}
 	}
-	
+
 	if !domainMatches {
 		health.Issues = append(health.Issues, "Certificate does not match domain name")
 		health.Score -= 40

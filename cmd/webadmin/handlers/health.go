@@ -30,7 +30,7 @@ func (h *HealthHandler) SystemHealth(w http.ResponseWriter, r *http.Request) {
 	health := map[string]interface{}{
 		"status":    "healthy",
 		"timestamp": time.Now().Format(time.RFC3339),
-		"version":   "1.0.0", // TODO: Get from build info
+		"version":   "1.0.0",                         // TODO: Get from build info
 		"uptime":    time.Since(time.Now()).String(), // TODO: Track actual uptime
 		"checks": map[string]interface{}{
 			"gomail_api": h.checkGoMailAPI(),

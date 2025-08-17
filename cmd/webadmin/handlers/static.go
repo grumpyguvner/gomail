@@ -28,17 +28,17 @@ func (h *StaticHandler) ServeStatic() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Clean the path
 		urlPath := path.Clean(r.URL.Path)
-		
+
 		// Remove leading slash
 		if strings.HasPrefix(urlPath, "/") {
 			urlPath = urlPath[1:]
 		}
-		
+
 		// If path is empty, serve index.html
 		if urlPath == "" {
 			urlPath = "index.html"
 		}
-		
+
 		// Try to open the file from embedded filesystem
 		file, err := h.fileSystem.Open(urlPath)
 		if err != nil {
@@ -61,10 +61,10 @@ func (h *StaticHandler) ServeStatic() http.Handler {
 			return
 		}
 		defer file.Close()
-		
+
 		// Set appropriate content type based on file extension
 		h.setContentType(w, urlPath)
-		
+
 		// Read and serve the file content
 		io.Copy(w, file)
 	})
@@ -72,7 +72,7 @@ func (h *StaticHandler) ServeStatic() http.Handler {
 
 func (h *StaticHandler) setContentType(w http.ResponseWriter, filepath string) {
 	ext := strings.ToLower(filepath[strings.LastIndex(filepath, "."):])
-	
+
 	switch ext {
 	case ".html":
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")

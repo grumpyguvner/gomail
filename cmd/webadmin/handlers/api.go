@@ -8,8 +8,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/grumpyguvner/gomail/cmd/webadmin/config"
-	"github.com/grumpyguvner/gomail/cmd/webadmin/proxy"
 	"github.com/grumpyguvner/gomail/cmd/webadmin/logging"
+	"github.com/grumpyguvner/gomail/cmd/webadmin/proxy"
 )
 
 type APIHandler struct {
@@ -33,11 +33,11 @@ func (h *APIHandler) ListDomains(w http.ResponseWriter, r *http.Request) {
 	domains := make([]map[string]interface{}, 0, len(h.config.Domains))
 	for domain, cfg := range h.config.Domains {
 		domains = append(domains, map[string]interface{}{
-			"domain":        domain,
-			"action":        cfg.Action,
-			"forward_to":    cfg.ForwardTo,
+			"domain":         domain,
+			"action":         cfg.Action,
+			"forward_to":     cfg.ForwardTo,
 			"bounce_message": cfg.BounceMessage,
-			"health_checks": cfg.HealthChecks,
+			"health_checks":  cfg.HealthChecks,
 		})
 	}
 

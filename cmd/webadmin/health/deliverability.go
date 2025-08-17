@@ -139,7 +139,7 @@ func (c *DeliverabilityChecker) isIPBlacklisted(ip, blacklist string) bool {
 	}
 
 	_, err := resolver.LookupHost(ctx, query)
-	
+
 	// If the lookup succeeds, the IP is blacklisted
 	return err == nil
 }
@@ -157,7 +157,7 @@ func (c *DeliverabilityChecker) reverseIP(ip string) string {
 
 func (c *DeliverabilityChecker) checkDomainReputation(domain string, health *DeliverabilityHealth) {
 	// Check if domain is suspicious based on various factors
-	
+
 	// Check domain age (approximate)
 	if c.isDomainSuspicious(domain) {
 		health.Issues = append(health.Issues, "Domain may have reputation issues")
@@ -184,10 +184,10 @@ func (c *DeliverabilityChecker) checkDomainReputation(domain string, health *Del
 
 func (c *DeliverabilityChecker) isDomainSuspicious(domain string) bool {
 	// Simple checks for suspicious domains
-	
+
 	// Very short domains (excluding common TLDs)
-	if len(domain) < 6 && !strings.HasSuffix(domain, ".com") && 
-	   !strings.HasSuffix(domain, ".org") && !strings.HasSuffix(domain, ".net") {
+	if len(domain) < 6 && !strings.HasSuffix(domain, ".com") &&
+		!strings.HasSuffix(domain, ".org") && !strings.HasSuffix(domain, ".net") {
 		return true
 	}
 
@@ -198,7 +198,7 @@ func (c *DeliverabilityChecker) isDomainSuspicious(domain string) bool {
 			numbers++
 		}
 	}
-	
+
 	if numbers > len(domain)/3 {
 		return true
 	}
@@ -241,14 +241,14 @@ func (c *DeliverabilityChecker) checkMXRecordDeliverability(domain string, healt
 	// Check if MX records point to valid hosts
 	for _, mx := range mxRecords {
 		mxHost := strings.TrimSuffix(mx.Host, ".")
-		
+
 		// Check if MX host resolves
 		_, err := net.LookupHost(mxHost)
 		if err != nil {
 			health.Issues = append(health.Issues, "MX record points to unresolvable host: "+mxHost)
 			health.Score -= 20
 		}
-		
+
 		// Check for common free email providers (which might affect reputation)
 		freeProviders := []string{
 			"gmail.com",
@@ -256,7 +256,7 @@ func (c *DeliverabilityChecker) checkMXRecordDeliverability(domain string, healt
 			"yahoo.com",
 			"hotmail.com",
 		}
-		
+
 		for _, provider := range freeProviders {
 			if strings.Contains(strings.ToLower(mxHost), provider) {
 				health.Issues = append(health.Issues, "MX record points to free email provider")

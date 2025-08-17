@@ -14,7 +14,7 @@ type Logger struct {
 func NewLogger(level string, output string) (*Logger, error) {
 	// Initialize the internal logger
 	internallogging.InitLogger("production")
-	
+
 	return &Logger{
 		sugar: internallogging.Get(),
 	}, nil
