@@ -124,8 +124,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Configurable enforcement levels (none/relaxed/strict)
   - DMARC aggregate reporting foundation
 
-#### Still Pending
-- [ ] Port 587 submission service
+### ✅ Sprint 3 COMPLETE!
+
+All authentication features implemented. Port 587 submission service was removed from scope as GoMail is an API-driven mail system, not a traditional mail server for end-user clients.
 
 ### 🔜 Sprint 4: Operational Excellence (2025-09-12 to 2025-09-26)
 

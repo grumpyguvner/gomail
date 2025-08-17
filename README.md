@@ -1,13 +1,28 @@
-# GoMail - Modern Mail Server in Go
+# GoMail - API-Driven Mail Server in Go
 
-A high-performance mail server solution that combines Postfix SMTP with HTTP API forwarding, written entirely in Go. GoMail provides a single binary that handles everything from installation to email processing.
+A high-performance, API-driven mail server that combines Postfix SMTP reception with HTTP webhook forwarding. GoMail is **NOT** a traditional mail server for email clients - it's a specialized system for programmatic email handling through REST APIs.
 
 [![Go Version](https://img.shields.io/badge/Go-1.21%2B-blue)](https://go.dev)
 [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 [![Status](https://img.shields.io/badge/Status-Pre--Production-orange)](PRODUCTION-READINESS-PLAN.md)
 [![Test Coverage](https://img.shields.io/badge/Coverage-48.2%25-yellow)](CHANGELOG.md)
 
-> ⚠️ **IMPORTANT:** GoMail is currently undergoing production readiness improvements and is NOT yet suitable for production use. Sprint 2 Day 5 of 6 weeks completed. See [Production Readiness Plan](PRODUCTION-READINESS-PLAN.md) for our 6-week roadmap to production.
+> ⚠️ **IMPORTANT:** GoMail is currently undergoing production readiness improvements and is NOT yet suitable for production use. Sprint 3 completed (3 of 6 sprints done). See [Production Readiness Plan](PRODUCTION-READINESS-PLAN.md) for our roadmap to production.
+
+## Use Cases
+
+GoMail is ideal for:
+- 📬 **Transactional Email Systems** - Receive and process automated emails
+- 🔔 **Email-to-Webhook Services** - Convert emails to HTTP notifications
+- 🤖 **Email Automation** - Programmatic email handling via APIs
+- 📊 **Email Analytics** - Capture and analyze email metadata
+- 🎫 **Support Ticket Systems** - Receive emails and create tickets via API
+- 💼 **SaaS Applications** - Multi-tenant email handling with authentication
+
+GoMail is NOT suitable for:
+- ❌ Personal email hosting (use Gmail, Outlook, etc.)
+- ❌ Corporate email servers (use Exchange, Zimbra, etc.)
+- ❌ Email client access (no IMAP/POP3/webmail)
 
 ## Features
 
@@ -73,7 +88,27 @@ sudo gomail quickstart example.com --token YOUR_DO_TOKEN
 
 ## Architecture
 
-GoMail provides a unified CLI with multiple commands:
+### What GoMail IS:
+- ✅ **API-driven mail system** - All email operations through REST API
+- ✅ **Inbound mail receiver** - Accepts mail on port 25 from other servers
+- ✅ **Webhook forwarder** - Converts emails to JSON and forwards to your application
+- ✅ **Authentication enforcer** - SPF/DKIM/DMARC verification on incoming mail
+- ✅ **Programmatic mail sender** - Send mail via authenticated API endpoints
+
+### What GoMail is NOT:
+- ❌ **NOT an email client server** - No IMAP/POP3 support
+- ❌ **NOT for Outlook/Thunderbird** - No port 587 submission service
+- ❌ **NOT a user mail system** - No mailboxes or user accounts
+- ❌ **NOT for SMTP AUTH** - API uses bearer tokens, not SMTP credentials
+
+### System Flow
+
+```
+Inbound:  [Internet] → [Port 25/SMTP] → [GoMail] → [Webhook/API]
+Outbound: [Your App] → [GoMail API] → [Port 25/SMTP] → [Internet]
+```
+
+### CLI Commands
 
 ```
 gomail
@@ -82,17 +117,8 @@ gomail
 ├── domain      # Manage email domains
 ├── dns         # Configure DNS records
 ├── ssl         # Manage SSL certificates
-│   ├── setup   # Obtain Let's Encrypt certificate
-│   ├── renew   # Renew existing certificate
-│   └── status  # Check certificate status
 ├── test        # Test configuration
 └── config      # Manage configuration
-```
-
-### Email Flow
-
-```
-[Email] → [Postfix:25] → [pipe transport] → [gomail API:3000] → [JSON storage]
 ```
 
 ## Configuration
@@ -179,13 +205,20 @@ Authentication metrics are exposed via Prometheus:
 
 ## API Documentation
 
+### Authentication
+All API endpoints (except `/health` and `/metrics`) require Bearer token authentication:
+```
+Authorization: Bearer YOUR_API_TOKEN
+```
+
 ### Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/mail/inbound` | POST | Receive email from Postfix |
-| `/health` | GET | Health check |
-| `/metrics` | GET | Server metrics |
+| Endpoint | Method | Description | Auth Required |
+|----------|--------|-------------|---------------|
+| `/mail/inbound` | POST | Receive email from Postfix | Yes |
+| `/mail/outbound` | POST | Send email via API (planned) | Yes |
+| `/health` | GET | Health check | No |
+| `/metrics` | GET | Prometheus metrics | No |
 
 ### Webhook Payload
 

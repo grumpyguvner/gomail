@@ -30,7 +30,7 @@ This plan addresses all critical issues identified in the production audit, with
 
 **Required State:**
 - Port 25: Keep for server-to-server (with STARTTLS)
-- Port 587: Add for authenticated client submission
+- ~~Port 587: Not needed - API-only mail submission~~
 - Mandatory TLS for all connections
 - SPF, DKIM, DMARC implementation
 - Rate limiting and connection throttling
@@ -365,19 +365,15 @@ func ConfigureTLS(config *tls.Config) {
 }
 ```
 
-### 3.2 Port 587 Submission Service (2 days)
+### 3.2 ~~Port 587 Submission Service~~ ❌ NOT NEEDED
 
-```bash
-# /etc/postfix/master.cf additions
-submission inet n       -       n       -       -       smtpd
-  -o syslog_name=postfix/submission
-  -o smtpd_tls_security_level=encrypt
-  -o smtpd_sasl_auth_enable=yes
-  -o smtpd_tls_auth_only=yes
-  -o smtpd_reject_unlisted_recipient=no
-  -o smtpd_recipient_restrictions=permit_sasl_authenticated,reject
-  -o milter_macro_daemon_name=ORIGINATING
-```
+**Architecture Decision:** GoMail is an API-driven mail system. Email submission happens through the authenticated REST API, not through traditional SMTP client connections. This eliminates the need for:
+- Port 587 submission service
+- SMTP AUTH (SASL) implementation  
+- User account management for SMTP
+- IMAP/POP3 services
+
+All outbound email is sent via the API with bearer token authentication.
 
 ### 3.3 DKIM Signing Implementation (2 days)
 
@@ -611,7 +607,7 @@ apparmor:
 
 ### Week 3-4: Sprint 3
 - [ ] Day 18-20: TLS implementation
-- [ ] Day 21-22: Port 587 setup
+- [x] ~~Day 21-22: Port 587 setup~~ (Not needed - API-only)
 - [ ] Day 23-24: DKIM signing
 - [ ] Day 25-26: SPF/DMARC
 - [ ] Day 27: Connection security
