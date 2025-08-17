@@ -91,14 +91,15 @@ func (c *Client) ListDroplets() ([]Droplet, error) {
 	return result.Droplets, nil
 }
 
-// RenameDroplet changes the name of a droplet
+// RenameDroplet changes the name of a droplet using the actions API
 func (c *Client) RenameDroplet(dropletID int, newName string) error {
 	body := map[string]string{
+		"type": "rename",
 		"name": newName,
 	}
 
-	path := fmt.Sprintf("/droplets/%d", dropletID)
-	_, err := c.doRequest("PUT", path, body)
+	path := fmt.Sprintf("/droplets/%d/actions", dropletID)
+	_, err := c.doRequest("POST", path, body)
 	if err != nil {
 		return fmt.Errorf("failed to rename droplet: %w", err)
 	}

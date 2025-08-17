@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/grumpyguvner/gomail/internal/config"
+	"github.com/grumpyguvner/gomail/internal/digitalocean"
 	"github.com/grumpyguvner/gomail/internal/logging"
 	"github.com/grumpyguvner/gomail/internal/postfix"
 	"github.com/spf13/cobra"
@@ -42,6 +44,17 @@ the API service, and DNS configuration.`,
 			logger.Info("Updating system packages...")
 			if err := updateSystem(); err != nil {
 				logger.Warnf("Warning: failed to update system: %v", err)
+			}
+
+			// Set up hostname and PTR record if DO token is available
+			if cfg.DOAPIToken != "" && cfg.MailHostname != "" {
+				logger.Infof("Setting up hostname: %s", cfg.MailHostname)
+				if err := setupHostnameAndPTR(cfg); err != nil {
+					logger.Warnf("Warning: failed to setup hostname/PTR: %v", err)
+					// Continue with installation even if this fails
+				} else {
+					logger.Info("✓ Hostname and PTR record configured")
+				}
 			}
 
 			// Install Postfix
@@ -218,5 +231,124 @@ API_ENDPOINT=%s
 		return fmt.Errorf("failed to write environment file: %w", err)
 	}
 
+	return nil
+}
+
+// setupHostnameAndPTR sets up the local hostname and renames the DigitalOcean droplet
+func setupHostnameAndPTR(cfg *config.Config) error {
+	logger := logging.Get()
+	
+	// First, update the local hostname
+	if err := updateLocalHostname(cfg.MailHostname); err != nil {
+		return fmt.Errorf("failed to update local hostname: %w", err)
+	}
+	
+	// Then, rename the droplet if we have DO API access
+	if cfg.DOAPIToken != "" {
+		client := digitalocean.NewClient(cfg.DOAPIToken)
+		if err := client.SetupPTRRecord(cfg.MailHostname); err != nil {
+			// Log but don't fail - PTR can be set up manually
+			logger.Warnf("Could not rename droplet for PTR: %v", err)
+			logger.Info("You may need to manually rename your droplet in DigitalOcean console")
+		}
+	}
+	
+	return nil
+}
+
+// updateLocalHostname updates the system hostname and /etc/hosts
+func updateLocalHostname(hostname string) error {
+	// Update the running hostname
+	if err := exec.Command("hostnamectl", "set-hostname", hostname).Run(); err != nil {
+		// Try the older method if hostnamectl isn't available
+		if err := exec.Command("hostname", hostname).Run(); err != nil {
+			return fmt.Errorf("failed to set hostname: %w", err)
+		}
+	}
+	
+	// Update /etc/hostname
+	if err := os.WriteFile("/etc/hostname", []byte(hostname+"\n"), 0644); err != nil {
+		return fmt.Errorf("failed to write /etc/hostname: %w", err)
+	}
+	
+	// Update /etc/hosts
+	if err := updateEtcHosts(hostname); err != nil {
+		return fmt.Errorf("failed to update /etc/hosts: %w", err)
+	}
+	
+	return nil
+}
+
+// updateEtcHosts updates the /etc/hosts file with the new hostname
+func updateEtcHosts(hostname string) error {
+	// Read current /etc/hosts
+	content, err := os.ReadFile("/etc/hosts")
+	if err != nil {
+		return fmt.Errorf("failed to read /etc/hosts: %w", err)
+	}
+	
+	lines := strings.Split(string(content), "\n")
+	var newLines []string
+	updated := false
+	
+	// Get the short hostname (without domain)
+	shortHostname := hostname
+	if idx := strings.Index(hostname, "."); idx > 0 {
+		shortHostname = hostname[:idx]
+	}
+	
+	for _, line := range lines {
+		// Skip empty lines and comments
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			newLines = append(newLines, line)
+			continue
+		}
+		
+		// Check if this is a localhost line that needs updating
+		if strings.HasPrefix(trimmed, "127.0.1.1") || strings.HasPrefix(trimmed, "127.0.0.1") {
+			fields := strings.Fields(trimmed)
+			if len(fields) >= 2 {
+				ip := fields[0]
+				if ip == "127.0.1.1" {
+					// Update the 127.0.1.1 line with new hostname
+					newLines = append(newLines, fmt.Sprintf("127.0.1.1\t%s %s", hostname, shortHostname))
+					updated = true
+				} else if ip == "127.0.0.1" {
+					// Keep localhost line as is, but ensure it has localhost
+					if !strings.Contains(line, "localhost") {
+						newLines = append(newLines, "127.0.0.1\tlocalhost")
+					} else {
+						newLines = append(newLines, line)
+					}
+				} else {
+					newLines = append(newLines, line)
+				}
+			} else {
+				newLines = append(newLines, line)
+			}
+		} else {
+			newLines = append(newLines, line)
+		}
+	}
+	
+	// If we didn't find a 127.0.1.1 line, add one
+	if !updated {
+		// Find where to insert (after 127.0.0.1 line)
+		for i, line := range newLines {
+			if strings.Contains(line, "127.0.0.1") {
+				// Insert after this line
+				newLines = append(newLines[:i+1], append([]string{fmt.Sprintf("127.0.1.1\t%s %s", hostname, shortHostname)}, newLines[i+1:]...)...)
+				break
+			}
+		}
+	}
+	
+	// Write back to /etc/hosts
+	newContent := strings.Join(newLines, "\n")
+	if err := os.WriteFile("/etc/hosts", []byte(newContent), 0644); err != nil {
+		return fmt.Errorf("failed to write /etc/hosts: %w", err)
+	}
+	
 	return nil
 }

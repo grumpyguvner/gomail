@@ -53,11 +53,12 @@ func TestListDroplets(t *testing.T) {
 
 func TestRenameDroplet(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/v2/droplets/123", r.URL.Path)
-		assert.Equal(t, "PUT", r.Method)
+		assert.Equal(t, "/v2/droplets/123/actions", r.URL.Path)
+		assert.Equal(t, "POST", r.Method)
 
 		var body map[string]string
 		_ = json.NewDecoder(r.Body).Decode(&body)
+		assert.Equal(t, "rename", body["type"])
 		assert.Equal(t, "mail.example.com", body["name"])
 
 		w.WriteHeader(200)
@@ -97,10 +98,11 @@ func TestSetupPTRRecord(t *testing.T) {
 					}]
 				}`
 				_, _ = w.Write([]byte(response))
-			} else if r.URL.Path == "/v2/droplets/456" && r.Method == "PUT" {
+			} else if r.URL.Path == "/v2/droplets/456/actions" && r.Method == "POST" {
 				// Rename request
 				var body map[string]string
 				_ = json.NewDecoder(r.Body).Decode(&body)
+				assert.Equal(t, "rename", body["type"])
 				assert.Equal(t, "mail.example.com", body["name"])
 				w.WriteHeader(200)
 			}
