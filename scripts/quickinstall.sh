@@ -115,7 +115,19 @@ chmod +x /tmp/gomail-webadmin
 mv /tmp/gomail-webadmin /usr/local/bin/gomail-webadmin
 echo "✅ WebAdmin binary installed"
 
-# Step 2: Generate or update configuration
+# Step 2: Install prerequisites (Postfix and dependencies)
+echo "📦 Installing prerequisites (Postfix, PCRE, SASL)..."
+if command -v dnf >/dev/null 2>&1; then
+  dnf install -y postfix postfix-pcre cyrus-sasl-plain
+elif command -v apt-get >/dev/null 2>&1; then
+  apt-get update && apt-get install -y postfix postfix-pcre libsasl2-modules
+else
+  echo "❌ Unsupported package manager. Please install Postfix manually."
+  exit 1
+fi
+echo "✅ Prerequisites installed"
+
+# Step 3: Generate or update configuration
 echo "🔧 Configuring GoMail..."
 
 # Write configuration
@@ -148,7 +160,7 @@ else
   echo "✅ Configuration updated"
 fi
 
-# Step 3: Run installation
+# Step 4: Run GoMail installation (configures Postfix for GoMail)
 echo "🚀 Installing mail server components (this may take a few minutes)..."
 if ! /usr/local/bin/gomail install --config $CONFIG_FILE; then
   echo "❌ Installation failed"
@@ -157,7 +169,7 @@ if ! /usr/local/bin/gomail install --config $CONFIG_FILE; then
 fi
 echo "✅ Mail server components installed"
 
-# Step 4: Add primary domain
+# Step 5: Add primary domain
 echo "🌐 Configuring domain ${PRIMARY_DOMAIN}..."
 if ! /usr/local/bin/gomail domain add ${PRIMARY_DOMAIN} --config $CONFIG_FILE; then
   echo "❌ Failed to configure domain"
@@ -166,7 +178,7 @@ if ! /usr/local/bin/gomail domain add ${PRIMARY_DOMAIN} --config $CONFIG_FILE; t
 fi
 echo "✅ Domain configured"
 
-# Step 5: Configure DNS if DO token provided
+# Step 6: Configure DNS if DO token provided
 if [ -n "$DO_TOKEN" ]; then
   echo "🔧 Configuring DigitalOcean DNS records..."
   if /usr/local/bin/gomail dns create ${PRIMARY_DOMAIN} --config $CONFIG_FILE; then
@@ -176,7 +188,7 @@ if [ -n "$DO_TOKEN" ]; then
   fi
 fi
 
-# Step 5: Create systemd service
+# Step 7: Create systemd service
 echo "⚙️  Setting up systemd service..."
 cat > /etc/systemd/system/gomail.service << 'EOF'
 [Unit]
