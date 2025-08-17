@@ -5,7 +5,7 @@ set -e
 # This script creates a test droplet, tests installation, and cleans up
 
 # Configuration
-DO_TOKEN="${DO_TOKEN:-dop_v1_f2113c7a3fd6559536e6b03509fc0fc89e537d5bf0b52a43857a0fe5a6231e83}"
+DO_TOKEN="${DO_TOKEN:-}"  # Must be set as environment variable
 TEST_DOMAIN="${TEST_DOMAIN:-entilly.com}"
 REGION="${REGION:-lon1}"
 SIZE="${SIZE:-s-1vcpu-1gb-intel}"
@@ -62,6 +62,13 @@ trap cleanup EXIT
 
 # Main test process
 main() {
+    # Check for required token
+    if [ -z "$DO_TOKEN" ]; then
+        log_error "DO_TOKEN environment variable is required"
+        log_error "Usage: DO_TOKEN=your_token ./test-droplet.sh"
+        exit 1
+    fi
+    
     log_info "Starting GoMail installation test"
     log_info "Domain: $TEST_DOMAIN"
     log_info "Region: $REGION"
