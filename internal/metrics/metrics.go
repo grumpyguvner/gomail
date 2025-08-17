@@ -186,6 +186,9 @@ func Init() {
 		_ = prometheus.Register(PlaintextConnections)
 		_ = prometheus.Register(TLSRequiredRejections)
 
+		// Register authentication metrics
+		initAuthMetrics()
+
 		// Register Go runtime metrics
 		_ = prometheus.Register(collectors.NewGoCollector())
 		_ = prometheus.Register(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
@@ -236,6 +239,30 @@ func Reset() {
 	prometheus.Unregister(TLSHandshakeDuration)
 	prometheus.Unregister(PlaintextConnections)
 	prometheus.Unregister(TLSRequiredRejections)
+
+	// Unregister authentication metrics
+	prometheus.Unregister(SPFPass)
+	prometheus.Unregister(SPFFail)
+	prometheus.Unregister(SPFSoftFail)
+	prometheus.Unregister(SPFNeutral)
+	prometheus.Unregister(SPFNone)
+	prometheus.Unregister(SPFLookupErrors)
+	prometheus.Unregister(DKIMPass)
+	prometheus.Unregister(DKIMFail)
+	prometheus.Unregister(DKIMNone)
+	prometheus.Unregister(DKIMPermError)
+	prometheus.Unregister(DKIMTempError)
+	prometheus.Unregister(DKIMVerifyErrors)
+	prometheus.Unregister(DKIMSigned)
+	prometheus.Unregister(DKIMSignErrors)
+	prometheus.Unregister(DMARCPass)
+	prometheus.Unregister(DMARCFail)
+	prometheus.Unregister(DMARCNone)
+	prometheus.Unregister(DMARCLookupErrors)
+	prometheus.Unregister(DMARCReportPass)
+	prometheus.Unregister(DMARCReportFail)
+	prometheus.Unregister(EmailsQuarantined)
+	prometheus.Unregister(EmailsRejected)
 
 	prometheus.Unregister(collectors.NewGoCollector())
 	prometheus.Unregister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
@@ -364,6 +391,9 @@ func Reset() {
 			Buckets: prometheus.ExponentialBuckets(0.001, 2, 10),
 		},
 	)
+
+	// Reset authentication metrics
+	resetAuthMetrics()
 }
 
 // RecordError increments the error counter for a specific error type and handler

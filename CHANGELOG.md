@@ -107,11 +107,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Configurable rates with burst handling
   - Connection reservation system
 
+- [x] SPF validation (Day 28)
+  - Native Go implementation using go-msgauth library
+  - Full SPF record parsing and evaluation
+  - Support for all SPF mechanisms (ip4, ip6, mx, a, include, all)
+  - Comprehensive metrics tracking (pass/fail/softfail/neutral)
+- [x] DKIM verification and signing (Day 29)
+  - DKIM signature verification for incoming mail
+  - DKIM signing capability for outgoing mail (relay scenarios)
+  - RSA key generation utility for DKIM setup
+  - Support for 2048-bit keys (recommended minimum)
+- [x] DMARC policy enforcement (Day 30)
+  - DMARC record lookup and parsing
+  - Alignment checking (SPF and DKIM)
+  - Policy enforcement (none/quarantine/reject)
+  - Configurable enforcement levels (none/relaxed/strict)
+  - DMARC aggregate reporting foundation
+
 #### Still Pending
 - [ ] Port 587 submission service
-- [ ] DKIM signing implementation
-- [ ] SPF validation
-- [ ] DMARC policy enforcement
 
 ### 🔜 Sprint 4: Operational Excellence (2025-09-12 to 2025-09-26)
 

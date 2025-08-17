@@ -81,7 +81,7 @@ gomail
 ├── install     # Install system components
 ├── domain      # Manage email domains
 ├── dns         # Configure DNS records
-├── ssl         # Manage SSL certificates (NEW)
+├── ssl         # Manage SSL certificates
 │   ├── setup   # Obtain Let's Encrypt certificate
 │   ├── renew   # Renew existing certificate
 │   └── status  # Check certificate status
@@ -113,6 +113,14 @@ bearer_token: your-secure-token-here
 mail_hostname: mail.example.com
 primary_domain: example.com
 api_endpoint: http://localhost:3000/mail/inbound
+
+# Email Authentication (SPF/DKIM/DMARC)
+spf_enabled: true
+dkim_enabled: true
+dkim_selector: default
+dkim_private_key_path: /etc/mailserver/dkim/private.key
+dmarc_enabled: true
+dmarc_enforcement: relaxed  # none, relaxed, or strict
 ```
 
 ### Environment Variables
@@ -122,6 +130,52 @@ export MAIL_BEARER_TOKEN=your-secure-token
 export MAIL_PORT=3000
 export MAIL_PRIMARY_DOMAIN=example.com
 ```
+
+## Email Authentication
+
+GoMail includes native support for email authentication protocols to prevent spam and spoofing:
+
+### SPF (Sender Policy Framework)
+- Automatic SPF verification for incoming mail
+- Checks sender IP against domain's SPF record
+- Supports all SPF mechanisms (ip4, ip6, mx, a, include)
+- Results included in authentication metadata
+
+### DKIM (DomainKeys Identified Mail)
+- Verifies DKIM signatures on incoming mail
+- Optional DKIM signing for outgoing mail (relay scenarios)
+- RSA key generation utility included
+- Support for 2048-bit keys (recommended)
+
+### DMARC (Domain-based Message Authentication)
+- Policy enforcement for incoming mail
+- Alignment checking (SPF and DKIM)
+- Configurable enforcement levels:
+  - `none`: Monitor only, no enforcement
+  - `relaxed`: Enforce but allow some flexibility
+  - `strict`: Strict policy enforcement
+- Foundation for aggregate reporting
+
+### Configuration
+
+Authentication can be enabled/disabled and configured through the YAML config:
+
+```yaml
+spf_enabled: true
+dkim_enabled: true
+dkim_selector: default
+dkim_private_key_path: /etc/mailserver/dkim/private.key
+dmarc_enabled: true
+dmarc_enforcement: relaxed
+```
+
+### Metrics
+
+Authentication metrics are exposed via Prometheus:
+- SPF pass/fail/softfail/neutral counts
+- DKIM pass/fail/none counts
+- DMARC pass/fail/none counts
+- Email rejection/quarantine counts by reason
 
 ## API Documentation
 
@@ -146,15 +200,19 @@ export MAIL_PRIMARY_DOMAIN=example.com
   "authentication": {
     "spf": {
       "client_ip": "192.168.1.100",
-      "mail_from": "sender@example.org"
+      "mail_from": "sender@example.org",
+      "helo_domain": "mail.example.org",
+      "received_spf_header": "Pass (IP: 192.168.1.100)"
     },
     "dkim": {
       "signatures": ["..."],
-      "from_domain": "example.org"
+      "from_domain": "example.org",
+      "signed_by": ["example.org"]
     },
     "dmarc": {
       "from_header": "from@example.org",
-      "return_path": "bounce@example.org"
+      "return_path": "bounce@example.org",
+      "authentication_results": "example.com; spf=pass smtp.mailfrom=example.org; dkim=pass header.d=example.org; dmarc=pass header.from=example.org"
     }
   }
 }

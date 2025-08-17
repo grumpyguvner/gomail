@@ -50,6 +50,14 @@ type Config struct {
 	PostfixMainCF       string `json:"postfix_main_cf" mapstructure:"postfix_main_cf"`
 	PostfixVirtualRegex string `json:"postfix_virtual_regex" mapstructure:"postfix_virtual_regex"`
 	PostfixDomainsList  string `json:"postfix_domains_list" mapstructure:"postfix_domains_list"`
+
+	// Email Authentication configuration
+	SPFEnabled         bool   `json:"spf_enabled" mapstructure:"spf_enabled"`
+	DKIMEnabled        bool   `json:"dkim_enabled" mapstructure:"dkim_enabled"`
+	DKIMSelector       string `json:"dkim_selector" mapstructure:"dkim_selector"`
+	DKIMPrivateKeyPath string `json:"dkim_private_key_path" mapstructure:"dkim_private_key_path"`
+	DMARCEnabled       bool   `json:"dmarc_enabled" mapstructure:"dmarc_enabled"`
+	DMARCEnforcement   string `json:"dmarc_enforcement" mapstructure:"dmarc_enforcement"` // "none", "relaxed", "strict"
 }
 
 func Load() (*Config, error) {
@@ -76,6 +84,12 @@ func Load() (*Config, error) {
 	viper.SetDefault("handler_timeout", 25)
 	viper.SetDefault("max_connections", 100)
 	viper.SetDefault("max_idle_conns", 10)
+	viper.SetDefault("spf_enabled", true)
+	viper.SetDefault("dkim_enabled", true)
+	viper.SetDefault("dkim_selector", "default")
+	viper.SetDefault("dkim_private_key_path", "/etc/mailserver/dkim/private.key")
+	viper.SetDefault("dmarc_enabled", true)
+	viper.SetDefault("dmarc_enforcement", "relaxed")
 
 	// Bind environment variables
 	viper.SetEnvPrefix("MAIL")
@@ -93,6 +107,12 @@ func Load() (*Config, error) {
 	_ = viper.BindEnv("metrics_port", "MAIL_METRICS_PORT")
 	_ = viper.BindEnv("metrics_path", "MAIL_METRICS_PATH")
 	_ = viper.BindEnv("do_api_token", "MAIL_DO_API_TOKEN")
+	_ = viper.BindEnv("spf_enabled", "MAIL_SPF_ENABLED")
+	_ = viper.BindEnv("dkim_enabled", "MAIL_DKIM_ENABLED")
+	_ = viper.BindEnv("dkim_selector", "MAIL_DKIM_SELECTOR")
+	_ = viper.BindEnv("dkim_private_key_path", "MAIL_DKIM_PRIVATE_KEY_PATH")
+	_ = viper.BindEnv("dmarc_enabled", "MAIL_DMARC_ENABLED")
+	_ = viper.BindEnv("dmarc_enforcement", "MAIL_DMARC_ENFORCEMENT")
 
 	// Also check old environment variable names for compatibility
 	if token := os.Getenv("API_BEARER_TOKEN"); token != "" {

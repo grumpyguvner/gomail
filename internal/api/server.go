@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/grumpyguvner/gomail/internal/auth"
 	"github.com/grumpyguvner/gomail/internal/config"
 	"github.com/grumpyguvner/gomail/internal/errors"
 	"github.com/grumpyguvner/gomail/internal/logging"
@@ -32,6 +33,7 @@ type Server struct {
 	storage         *storage.FileStorage
 	metrics         *Metrics
 	validator       *validation.EmailValidator
+	authMiddleware  *auth.Middleware
 	activeRequests  atomic.Int64
 	shutdownStarted atomic.Bool
 }
@@ -51,10 +53,18 @@ func NewServer(cfg *config.Config) (*Server, error) {
 		return nil, fmt.Errorf("failed to initialize storage: %w", err)
 	}
 
+	// Initialize authentication middleware
+	authMiddleware, err := auth.NewMiddleware(cfg)
+	if err != nil {
+		logging.Get().Warnf("Authentication middleware initialization failed: %v", err)
+		// Continue without auth if it fails to initialize
+	}
+
 	s := &Server{
-		config:    cfg,
-		storage:   store,
-		validator: validation.NewEmailValidator(),
+		config:         cfg,
+		storage:        store,
+		validator:      validation.NewEmailValidator(),
+		authMiddleware: authMiddleware,
 	}
 
 	s.metrics = &Metrics{
@@ -347,6 +357,50 @@ func (s *Server) handleMailInbound(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Perform email authentication if configured
+	if s.authMiddleware != nil {
+		// Extract source IP for SPF checking
+		sourceIP := net.ParseIP(extractClientIP(r))
+		heloHost := headers["helo"]
+		mailFrom := emailData.Sender
+
+		// Perform authentication checks
+		authResult, err := s.authMiddleware.VerifyInbound(ctx, sourceIP, heloHost, mailFrom, body)
+		if err != nil {
+			requestID := middleware.GetRequestIDFromRequest(r)
+			logging.WithRequestID(requestID).Warnf("Authentication verification error: %v", err)
+		}
+
+		// Add Authentication-Results to email data
+		if authResult != nil {
+			hostname := s.config.MailHostname
+			if hostname == "" {
+				hostname = "localhost"
+			}
+			authResultsHeader := s.authMiddleware.FormatAuthenticationResults(authResult, hostname)
+
+			// Store authentication results in the DMARC metadata
+			emailData.Authentication.DMARC.AuthenticationResults = authResultsHeader
+
+			// Check if email should be rejected based on authentication
+			if authResult.Action == "reject" {
+				requestID := middleware.GetRequestIDFromRequest(r)
+				logging.WithRequestID(requestID).Warnf("Email rejected by authentication policy: from=%s", mailFrom)
+				metrics.EmailsProcessed.WithLabelValues("rejected").Inc()
+				metrics.EmailProcessingDuration.Observe(time.Since(start).Seconds())
+				middleware.SendErrorResponse(w, errors.ValidationError("Email rejected by authentication policy",
+					map[string]string{"reason": "DMARC policy violation"}))
+				return
+			}
+
+			// Add quarantine marker to raw email if needed
+			if authResult.Action == "quarantine" {
+				// Prepend quarantine header to raw email
+				emailData.Raw = "X-Quarantine-Reason: DMARC policy\r\n" + emailData.Raw
+			}
+		}
+	}
+
 	// Store email
 	filename, err := s.storage.Store(emailData)
 	if err != nil {
@@ -438,5 +492,37 @@ func extractHeadersFromRequest(r *http.Request) map[string]string {
 		}
 	}
 
+	// Also extract common SMTP headers for authentication
+	if helo := r.Header.Get("X-Helo"); helo != "" {
+		headers["helo"] = helo
+	}
+	if mailfrom := r.Header.Get("X-Mail-From"); mailfrom != "" {
+		headers["mail-from"] = mailfrom
+	}
+
 	return headers
+}
+
+// extractClientIP extracts the client IP address from the request
+func extractClientIP(r *http.Request) string {
+	// Check X-Forwarded-For header first
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		// Take the first IP in the chain
+		parts := strings.Split(xff, ",")
+		if len(parts) > 0 {
+			return strings.TrimSpace(parts[0])
+		}
+	}
+
+	// Check X-Real-IP header
+	if xri := r.Header.Get("X-Real-IP"); xri != "" {
+		return xri
+	}
+
+	// Fall back to RemoteAddr
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
+	}
+	return host
 }
