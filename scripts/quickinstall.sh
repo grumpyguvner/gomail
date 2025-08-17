@@ -150,18 +150,18 @@ fi
 
 # Step 3: Run installation
 echo "🚀 Installing mail server components..."
-gomail install --config $CONFIG_FILE >/dev/null 2>&1 || { echo "Installation failed"; exit 1; }
+/usr/local/bin/gomail install --config $CONFIG_FILE >/dev/null 2>&1 || { echo "Installation failed"; exit 1; }
 echo "✅ Mail server components installed"
 
 # Step 4: Add primary domain
 echo "🌐 Configuring domain ${PRIMARY_DOMAIN}..."
-gomail domain add ${PRIMARY_DOMAIN} --config $CONFIG_FILE >/dev/null 2>&1
+/usr/local/bin/gomail domain add ${PRIMARY_DOMAIN} --config $CONFIG_FILE >/dev/null 2>&1 || { echo "❌ Failed to configure domain"; exit 1; }
 echo "✅ Domain configured"
 
 # Step 5: Configure DNS if DO token provided
 if [ -n "$DO_TOKEN" ]; then
   echo "🔧 Configuring DigitalOcean DNS records..."
-  gomail dns create ${PRIMARY_DOMAIN} --config $CONFIG_FILE >/dev/null 2>&1 && echo "✅ DNS records created" || echo "⚠️  DNS configuration failed - configure manually"
+  /usr/local/bin/gomail dns create ${PRIMARY_DOMAIN} --config $CONFIG_FILE >/dev/null 2>&1 && echo "✅ DNS records created" || echo "⚠️  DNS configuration failed - configure manually"
 fi
 
 # Step 5: Create systemd service
