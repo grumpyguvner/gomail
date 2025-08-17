@@ -304,17 +304,47 @@ EOF
     log_info "Bearer Token: $BEARER_TOKEN"
     log_info "========================================="
     
-    # Ask if user wants to keep the droplet
-    read -p "Keep droplet for manual testing? (y/n): " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        log_info "Keeping droplet. Remember to delete it manually:"
-        log_info "  curl -X DELETE 'https://api.digitalocean.com/v2/droplets/$DROPLET_ID' \\"
-        log_info "    -H 'Authorization: Bearer $DO_TOKEN'"
-        trap - EXIT  # Remove cleanup trap
-    else
-        log_info "Cleaning up..."
-    fi
+    # Always keep the droplet for manual testing
+    log_info "========================================="
+    log_info "Test environment ready for manual testing"
+    log_info "========================================="
+    log_info "SSH Access: ssh root@$DROPLET_IP"
+    log_info "Domain: $TEST_DOMAIN"
+    log_info "API: http://$DROPLET_IP:3000"
+    log_info "WebAdmin: https://$TEST_DOMAIN/ (or https://$DROPLET_IP/)"
+    log_info "Bearer Token: $BEARER_TOKEN"
+    log_info ""
+    log_info "Useful commands:"
+    log_info "  systemctl status gomail"
+    log_info "  systemctl status gomail-webadmin"
+    log_info "  systemctl status postfix"
+    log_info "  journalctl -u gomail -f"
+    log_info "  gomail test"
+    log_info ""
+    log_info "To delete the droplet when done:"
+    log_info "  DO_TOKEN=$DO_TOKEN curl -X DELETE 'https://api.digitalocean.com/v2/droplets/$DROPLET_ID' \\"
+    log_info "    -H \"Authorization: Bearer \$DO_TOKEN\""
+    log_info ""
+    
+    # Save access details to file
+    cat > test-droplet-access.txt << EOF
+Test Droplet Access Details
+============================
+Created: $(date)
+Droplet ID: $DROPLET_ID
+IP Address: $DROPLET_IP
+Domain: $TEST_DOMAIN
+SSH: ssh root@$DROPLET_IP
+API: http://$DROPLET_IP:3000
+WebAdmin: https://$TEST_DOMAIN/
+Bearer Token: $BEARER_TOKEN
+
+Delete command:
+DO_TOKEN=$DO_TOKEN curl -X DELETE 'https://api.digitalocean.com/v2/droplets/$DROPLET_ID' -H "Authorization: Bearer \$DO_TOKEN"
+EOF
+    
+    log_info "Access details saved to: test-droplet-access.txt"
+    trap - EXIT  # Remove cleanup trap to keep droplet
 }
 
 # Function to wait for DNS TTL
