@@ -425,8 +425,8 @@ WantedBy=multi-user.target
 	// Create environment file for webadmin
 	// Configure WebAdmin for HTTPS on port 443
 	// Check if Let's Encrypt certificates exist, otherwise use self-signed
-	certPath := "/etc/mailserver/certs/cert.pem"
-	keyPath := "/etc/mailserver/certs/key.pem"
+	certPath = "/etc/mailserver/certs/cert.pem"
+	keyPath = "/etc/mailserver/certs/key.pem"
 	if _, err := os.Stat(certPath); os.IsNotExist(err) {
 		// Fall back to self-signed certificates
 		certPath = "/etc/mailserver/ssl/cert.pem"
