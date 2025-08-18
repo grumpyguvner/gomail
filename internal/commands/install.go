@@ -424,10 +424,19 @@ WantedBy=multi-user.target
 
 	// Create environment file for webadmin
 	// Configure WebAdmin for HTTPS on port 443
+	// Check if Let's Encrypt certificates exist, otherwise use self-signed
+	certPath := "/etc/mailserver/certs/cert.pem"
+	keyPath := "/etc/mailserver/certs/key.pem"
+	if _, err := os.Stat(certPath); os.IsNotExist(err) {
+		// Fall back to self-signed certificates
+		certPath = "/etc/mailserver/ssl/cert.pem"
+		keyPath = "/etc/mailserver/ssl/key.pem"
+	}
+	
 	webadminEnv := fmt.Sprintf(`# GoMail WebAdmin Environment Configuration
 WEBADMIN_PORT=443
-WEBADMIN_SSL_CERT=/etc/mailserver/ssl/cert.pem
-WEBADMIN_SSL_KEY=/etc/mailserver/ssl/key.pem
+WEBADMIN_SSL_CERT=%s
+WEBADMIN_SSL_KEY=%s
 WEBADMIN_STATIC_DIR=%s
 WEBADMIN_GOMAIL_API_URL=http://localhost:%d
 WEBADMIN_BEARER_TOKEN=%s
@@ -449,7 +458,7 @@ MAIL_BEARER_TOKEN=%s
 	protocol := "https"
 	logger.Infof("WebAdmin service installed. Access at %s://%s:%s/", protocol, cfg.MailHostname, webadminPort)
 	logger.Infof("Use bearer token for authentication: %s", cfg.BearerToken)
-	logger.Info("Note: Using self-signed certificate. For production, replace with proper SSL certificate.")
+	logger.Info("Note: Using self-signed certificate. To obtain a Let's Encrypt certificate, run: gomail ssl setup")
 
 	return nil
 }
