@@ -163,11 +163,19 @@ system-install: build
 config:
 	./$(BUILD_DIR)/$(BINARY_NAME) config generate
 
-# Release preparation
+# Release preparation (with full checks)
 release-prep: check
 	@echo "Preparing release..."
 	@if [ -z "$(VERSION)" ]; then \
 		echo "Error: VERSION is required. Usage: make release-prep VERSION=v1.0.1"; \
+		exit 1; \
+	fi
+
+# Release preparation (without security checks - for fixing critical issues)
+release-prep-nosec: fmt-check lint test build
+	@echo "Preparing release (skipping security checks)..."
+	@if [ -z "$(VERSION)" ]; then \
+		echo "Error: VERSION is required. Usage: make release-prep-nosec VERSION=v1.0.1"; \
 		exit 1; \
 	fi
 	@echo "Building release binaries for version $(VERSION)..."
@@ -226,6 +234,19 @@ release-quick: fmt-check lint build
 release: release-prep
 	@echo "════════════════════════════════════════════════════════════"
 	@echo "Release $(VERSION) prepared successfully!"
+	@echo "════════════════════════════════════════════════════════════"
+	@echo "Next steps:"
+	@echo "  1. Review the release artifacts in $(BUILD_DIR)/release/"
+	@echo "  2. Create and push tag: make release-tag VERSION=$(VERSION)"
+	@echo "  3. Push tag: git push origin $(VERSION)"
+	@echo "════════════════════════════════════════════════════════════"
+
+# Release without security checks (for critical fixes)
+release-nosec: release-prep-nosec
+	@echo "════════════════════════════════════════════════════════════"
+	@echo "Release $(VERSION) prepared successfully (security checks skipped)!"
+	@echo "════════════════════════════════════════════════════════════"
+	@echo "⚠️  WARNING: Security checks were skipped for this release"
 	@echo "════════════════════════════════════════════════════════════"
 	@echo "Next steps:"
 	@echo "  1. Review the release artifacts in $(BUILD_DIR)/release/"

@@ -37,6 +37,7 @@ esac
 
 BINARY="gomail-${OS}-${ARCH}"
 WEBADMIN_BINARY="gomail-webadmin-${OS}-${ARCH}"
+
 RELEASE_URL="https://github.com/grumpyguvner/gomail/releases/latest/download/${BINARY}"
 WEBADMIN_URL="https://github.com/grumpyguvner/gomail/releases/latest/download/${WEBADMIN_BINARY}"
 
@@ -107,12 +108,20 @@ fi
 $DOWNLOAD_CMD /tmp/gomail "$RELEASE_URL" || { echo "Failed to download GoMail"; exit 1; }
 chmod +x /tmp/gomail
 mv /tmp/gomail /usr/local/bin/gomail
+# Fix SELinux context if enforcing
+if command -v getenforce >/dev/null 2>&1 && [ "$(getenforce)" = "Enforcing" ]; then
+  restorecon -v /usr/local/bin/gomail
+fi
 echo "✅ GoMail binary installed"
 
 echo "📦 Installing GoMail WebAdmin..."
 $DOWNLOAD_CMD /tmp/gomail-webadmin "$WEBADMIN_URL" || { echo "Failed to download WebAdmin"; exit 1; }
 chmod +x /tmp/gomail-webadmin
 mv /tmp/gomail-webadmin /usr/local/bin/gomail-webadmin
+# Fix SELinux context if enforcing
+if command -v getenforce >/dev/null 2>&1 && [ "$(getenforce)" = "Enforcing" ]; then
+  restorecon -v /usr/local/bin/gomail-webadmin
+fi
 echo "✅ WebAdmin binary installed"
 
 # Step 2: Install prerequisites (Postfix and dependencies)
@@ -162,7 +171,7 @@ fi
 
 # Step 4: Run GoMail installation (configures Postfix for GoMail)
 echo "🚀 Installing mail server components (this may take a few minutes)..."
-if ! /usr/local/bin/gomail install --config $CONFIG_FILE; then
+if ! MAIL_BEARER_TOKEN="${BEARER_TOKEN}" /usr/local/bin/gomail install --config $CONFIG_FILE; then
   echo "❌ Installation failed"
   echo "Please check the error messages above"
   exit 1

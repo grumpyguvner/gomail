@@ -1,6 +1,8 @@
 package commands
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"os"
 	"os/exec"
@@ -35,6 +37,23 @@ the API service, and DNS configuration.`,
 
 			logger := logging.Get()
 			logger.Info("Starting mail server installation...")
+
+			// Generate bearer token if not set in environment
+			bearerToken := os.Getenv("MAIL_BEARER_TOKEN")
+			if bearerToken == "" {
+				bearerToken = os.Getenv("API_BEARER_TOKEN")
+			}
+			if bearerToken == "" {
+				// Generate a secure random token
+				tokenBytes := make([]byte, 32)
+				if _, err := rand.Read(tokenBytes); err != nil {
+					return fmt.Errorf("failed to generate token: %w", err)
+				}
+				bearerToken = base64.StdEncoding.EncodeToString(tokenBytes)
+				logger.Infof("Generated bearer token: %s", bearerToken)
+				// Set it in the environment so config.Load() picks it up
+				os.Setenv("MAIL_BEARER_TOKEN", bearerToken)
+			}
 
 			// Load configuration
 			cfg, err := config.Load()
@@ -154,6 +173,14 @@ func installAPIService(cfg *config.Config) error {
 			return fmt.Errorf("failed to install binary: %w", err)
 		}
 		logging.Get().Infof("Installed binary to %s", targetBinary)
+
+		// Fix SELinux context if needed
+		if output, _ := exec.Command("getenforce").Output(); strings.TrimSpace(string(output)) == "Enforcing" {
+			cmd := exec.Command("restorecon", "-v", targetBinary)
+			if err := cmd.Run(); err != nil {
+				logging.Get().Warnf("Failed to fix SELinux context: %v", err)
+			}
+		}
 	}
 
 	// Create service user
@@ -255,32 +282,55 @@ API_ENDPOINT=%s
 func installWebAdminService(cfg *config.Config) error {
 	logger := logging.Get()
 
-	// Copy webadmin binary to /usr/local/bin if we're not already there
-	currentBinary, err := os.Executable()
-	if err != nil {
-		return fmt.Errorf("failed to get current binary path: %w", err)
-	}
-
-	// The webadmin binary should be built alongside the main binary
-	webAdminBinary := strings.Replace(currentBinary, "mailserver", "gomail-webadmin", 1)
+	// Check if webadmin binary is already installed (by quickinstall.sh)
 	targetBinary := "/usr/local/bin/gomail-webadmin"
+	if _, err := os.Stat(targetBinary); err == nil {
+		logger.Info("WebAdmin binary already installed")
+		// Fix SELinux context if needed
+		if output, _ := exec.Command("getenforce").Output(); strings.TrimSpace(string(output)) == "Enforcing" {
+			cmd := exec.Command("restorecon", "-v", targetBinary)
+			if err := cmd.Run(); err != nil {
+				logger.Warnf("Failed to fix SELinux context for webadmin: %v", err)
+			}
+		}
+	} else {
+		// Try to find and copy webadmin binary
+		currentBinary, err := os.Executable()
+		if err != nil {
+			return fmt.Errorf("failed to get current binary path: %w", err)
+		}
 
-	// Check if webadmin binary exists
-	if _, err := os.Stat(webAdminBinary); err != nil {
-		logger.Warnf("WebAdmin binary not found at %s, skipping", webAdminBinary)
-		return nil
-	}
+		// Look for webadmin in same directory as current binary
+		webAdminBinary := strings.Replace(currentBinary, "gomail", "gomail-webadmin", 1)
+		if webAdminBinary == currentBinary {
+			webAdminBinary = strings.Replace(currentBinary, "mailserver", "gomail-webadmin", 1)
+		}
 
-	// Copy binary to system location
-	source, err := os.ReadFile(webAdminBinary)
-	if err != nil {
-		return fmt.Errorf("failed to read webadmin binary: %w", err)
-	}
+		// Check if webadmin binary exists
+		if _, err := os.Stat(webAdminBinary); err != nil {
+			logger.Warnf("WebAdmin binary not found at %s, skipping", webAdminBinary)
+			return nil
+		}
 
-	if err := os.WriteFile(targetBinary, source, 0755); err != nil {
-		return fmt.Errorf("failed to install webadmin binary: %w", err)
+		// Copy binary to system location
+		source, err := os.ReadFile(webAdminBinary)
+		if err != nil {
+			return fmt.Errorf("failed to read webadmin binary: %w", err)
+		}
+
+		if err := os.WriteFile(targetBinary, source, 0755); err != nil {
+			return fmt.Errorf("failed to install webadmin binary: %w", err)
+		}
+		logger.Infof("Installed webadmin binary to %s", targetBinary)
+
+		// Fix SELinux context
+		if output, _ := exec.Command("getenforce").Output(); strings.TrimSpace(string(output)) == "Enforcing" {
+			cmd := exec.Command("restorecon", "-v", targetBinary)
+			if err := cmd.Run(); err != nil {
+				logger.Warnf("Failed to fix SELinux context for webadmin: %v", err)
+			}
+		}
 	}
-	logger.Infof("Installed webadmin binary to %s", targetBinary)
 
 	// Create webadmin static files directory
 	webadminDir := "/opt/gomail/webadmin"

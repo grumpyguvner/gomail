@@ -12,7 +12,7 @@ REGION="${REGION:-lon1}"
 SIZE="${SIZE:-s-1vcpu-1gb-intel}"
 IMAGE="${IMAGE:-centos-stream-9-x64}"
 SSH_KEY="${SSH_KEY:-$HOME/.ssh/id_rsa}"
-RELEASE_VERSION="${RELEASE_VERSION:-latest}"
+# Always use latest release
 
 # Colors for output
 RED='\033[0;31m'
@@ -187,39 +187,115 @@ main() {
     # Step 6: Run quickinstall script
     log_info "Running GoMail quickinstall script..."
     
-    # Create a wrapper script to capture output and exit code
+    # Create installation script on the server that will run in background
     ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
-        -i "$SSH_KEY" "root@$DROPLET_IP" << EOF
+        -i "$SSH_KEY" "root@$DROPLET_IP" << OUTER_EOF
+cat > /tmp/run-install.sh << 'INNER_EOF'
 #!/bin/bash
 set -e
 
-# Download and run quickinstall
-if [ "$RELEASE_VERSION" == "latest" ]; then
-    SCRIPT_URL="https://github.com/grumpyguvner/gomail/releases/latest/download/quickinstall.sh"
-else
-    SCRIPT_URL="https://github.com/grumpyguvner/gomail/releases/download/$RELEASE_VERSION/quickinstall.sh"
-fi
+# Variables (will be replaced by sed)
+TEST_DOMAIN="__TEST_DOMAIN__"
+DO_TOKEN="__DO_TOKEN__"
 
-echo "Downloading quickinstall from: \$SCRIPT_URL"
-curl -sSL "\$SCRIPT_URL" -o /tmp/quickinstall.sh
+# Log file for background installation
+LOG_FILE="/tmp/install.log"
+STATUS_FILE="/tmp/install.status"
+
+# Mark as starting
+echo "RUNNING" > \$STATUS_FILE
+
+# Download and run quickinstall - always use latest
+SCRIPT_URL="https://github.com/grumpyguvner/gomail/releases/latest/download/quickinstall.sh"
+
+echo "Downloading quickinstall from: \$SCRIPT_URL" | tee \$LOG_FILE
+curl -sSL "\$SCRIPT_URL" -o /tmp/quickinstall.sh 2>&1 | tee -a \$LOG_FILE
 chmod +x /tmp/quickinstall.sh
 
 # Run the installation
-echo "Running installation for domain: $TEST_DOMAIN"
-/tmp/quickinstall.sh "$TEST_DOMAIN" --token "$DO_TOKEN" 2>&1 | tee /tmp/install.log
+echo "Running installation for domain: \$TEST_DOMAIN" | tee -a \$LOG_FILE
+/tmp/quickinstall.sh "\$TEST_DOMAIN" --token "\$DO_TOKEN" 2>&1 | tee -a \$LOG_FILE
 
 # Check if installation succeeded
-if [ \${PIPESTATUS[0]} -ne 0 ]; then
-    echo "Installation failed. Last 50 lines of log:"
-    tail -50 /tmp/install.log
+if [ \${PIPESTATUS[0]} -eq 0 ]; then
+    echo "SUCCESS" > \$STATUS_FILE
+    echo "Installation completed successfully" | tee -a \$LOG_FILE
+else
+    echo "FAILED" > \$STATUS_FILE
+    echo "Installation failed" | tee -a \$LOG_FILE
     exit 1
 fi
+INNER_EOF
 
-echo "Installation completed successfully"
-EOF
+# Make it executable
+chmod +x /tmp/run-install.sh
+
+# Replace variables in the script
+sed -i "s|__TEST_DOMAIN__|$TEST_DOMAIN|g" /tmp/run-install.sh
+sed -i "s|__DO_TOKEN__|$DO_TOKEN|g" /tmp/run-install.sh
+
+# Run installation in background using nohup
+nohup /tmp/run-install.sh > /tmp/install.output 2>&1 &
+INSTALL_PID=$!
+echo "Installation started in background with PID: $INSTALL_PID"
+
+# Store the PID for monitoring
+echo $INSTALL_PID > /tmp/install.pid
+
+echo "Installation is running in the background. Check /tmp/install.log for progress."
+echo "Status file: /tmp/install.status"
+OUTER_EOF
     
     if [ $? -ne 0 ]; then
-        log_error "Installation failed"
+        log_error "Failed to start installation"
+        exit 1
+    fi
+    
+    # Step 7: Monitor installation progress
+    log_info "Monitoring installation progress..."
+    
+    # Wait for installation to complete (check every 30 seconds, max 15 minutes)
+    MAX_WAIT=900  # 15 minutes
+    CHECK_INTERVAL=30
+    ELAPSED=0
+    
+    while [ $ELAPSED -lt $MAX_WAIT ]; do
+        sleep $CHECK_INTERVAL
+        ELAPSED=$((ELAPSED + CHECK_INTERVAL))
+        
+        # Check installation status
+        STATUS=$(ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+            -i "$SSH_KEY" "root@$DROPLET_IP" "cat /tmp/install.status 2>/dev/null || echo 'UNKNOWN'")
+        
+        if [ "$STATUS" == "SUCCESS" ]; then
+            log_success "Installation completed successfully!"
+            break
+        elif [ "$STATUS" == "FAILED" ]; then
+            log_error "Installation failed"
+            ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+                -i "$SSH_KEY" "root@$DROPLET_IP" "tail -50 /tmp/install.log"
+            break
+        elif [ "$STATUS" == "RUNNING" ]; then
+            echo -n "."
+        else
+            log_warn "Unknown status: $STATUS"
+        fi
+        
+        # Show last log line every 2 minutes
+        if [ $((ELAPSED % 120)) -eq 0 ]; then
+            echo
+            ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+                -i "$SSH_KEY" "root@$DROPLET_IP" "tail -1 /tmp/install.log 2>/dev/null || echo 'No log yet'"
+        fi
+    done
+    
+    if [ $ELAPSED -ge $MAX_WAIT ]; then
+        log_warn "Installation still running after 15 minutes. Check server manually."
+    fi
+    
+    # Step 8: Final check and debug info
+    if [ "$STATUS" != "SUCCESS" ]; then
+        log_error "Installation did not complete successfully"
         
         # Get more debug info
         log_info "Fetching debug information..."
