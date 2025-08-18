@@ -13,6 +13,7 @@ import (
 	"github.com/grumpyguvner/gomail/internal/digitalocean"
 	"github.com/grumpyguvner/gomail/internal/logging"
 	"github.com/grumpyguvner/gomail/internal/postfix"
+	"github.com/grumpyguvner/gomail/internal/ssl"
 	"github.com/spf13/cobra"
 )
 
@@ -224,13 +225,13 @@ func createServiceUser() error {
 	if err := cmd.Run(); err != nil {
 		return err
 	}
-	
+
 	// Create data directory
 	dataDir := "/opt/mailserver/data"
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		return fmt.Errorf("failed to create data directory: %w", err)
 	}
-	
+
 	// Set ownership
 	cmd = exec.Command("chown", "-R", "mailserver:mailserver", "/opt/mailserver")
 	return cmd.Run()
@@ -255,7 +256,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=full
 ProtectHome=true
-ReadWritePaths=/opt/mailserver/data
+ReadWritePaths=/opt/mailserver/data /etc/mailserver
 
 [Install]
 WantedBy=multi-user.target
@@ -350,45 +351,79 @@ func installWebAdminService(cfg *config.Config) error {
 		return fmt.Errorf("failed to create webadmin directory: %w", err)
 	}
 
-	// Create SSL directory and generate self-signed certificate
-	sslDir := "/etc/mailserver/ssl"
-	if err := os.MkdirAll(sslDir, 0755); err != nil {
-		return fmt.Errorf("failed to create SSL directory: %w", err)
-	}
-	
-	// Ensure SSL directory is accessible by mailserver user
-	cmd := exec.Command("chown", "mailserver:mailserver", sslDir)
-	if err := cmd.Run(); err != nil {
-		logger.Warnf("Failed to set SSL directory ownership: %v", err)
-	}
+	// Try to obtain Let's Encrypt certificate first
+	letsEncryptCertPath := "/etc/mailserver/certs/cert.pem"
+	letsEncryptKeyPath := "/etc/mailserver/certs/key.pem"
 
-	// Generate self-signed certificate for initial setup
-	certPath := filepath.Join(sslDir, "cert.pem")
-	keyPath := filepath.Join(sslDir, "key.pem")
+	if _, err := os.Stat(letsEncryptCertPath); os.IsNotExist(err) {
+		logger.Info("Attempting to obtain Let's Encrypt certificate...")
 
-	// Check if certificates already exist
-	if _, err := os.Stat(certPath); os.IsNotExist(err) {
-		logger.Info("Generating self-signed SSL certificate for WebAdmin...")
-		cmd := exec.Command("openssl", "req", "-x509", "-newkey", "rsa:4096",
-			"-keyout", keyPath, "-out", certPath,
-			"-days", "365", "-nodes",
-			"-subj", fmt.Sprintf("/CN=%s", cfg.MailHostname))
-		if err := cmd.Run(); err != nil {
-			logger.Warnf("Warning: failed to generate SSL certificate: %v", err)
-			logger.Info("WebAdmin will need SSL certificates to be manually configured")
-		} else {
+		// Create SSL manager
+		sslManager := ssl.NewManager(cfg)
+		sslManager.Email = fmt.Sprintf("admin@%s", cfg.PrimaryDomain)
+		sslManager.AgreeToTOS = true
+
+		// Try to obtain certificate
+		if err := sslManager.ObtainCertificate(); err != nil {
+			logger.Warnf("Could not obtain Let's Encrypt certificate: %v", err)
+			logger.Info("Falling back to self-signed certificate...")
+
+			// Create SSL directory for self-signed cert
+			sslDir := "/etc/mailserver/ssl"
+			if err := os.MkdirAll(sslDir, 0755); err != nil {
+				return fmt.Errorf("failed to create SSL directory: %w", err)
+			}
+
+			// Ensure SSL directory is accessible by mailserver user
+			cmd := exec.Command("chown", "mailserver:mailserver", sslDir)
+			if err := cmd.Run(); err != nil {
+				logger.Warnf("Failed to set SSL directory ownership: %v", err)
+			}
+
+			// Generate self-signed certificate as fallback
+			certPath := filepath.Join(sslDir, "cert.pem")
+			keyPath := filepath.Join(sslDir, "key.pem")
+
+			logger.Info("Generating self-signed SSL certificate...")
+			cmd = exec.Command("openssl", "req", "-x509", "-newkey", "rsa:4096",
+				"-keyout", keyPath, "-out", certPath,
+				"-days", "365", "-nodes",
+				"-subj", fmt.Sprintf("/CN=%s", cfg.MailHostname))
+			if err := cmd.Run(); err != nil {
+				return fmt.Errorf("failed to generate SSL certificate: %w", err)
+			}
 			logger.Info("✓ Self-signed SSL certificate generated")
-		}
 
-		// Set proper permissions and ownership
-		_ = os.Chmod(certPath, 0644)
-		_ = os.Chmod(keyPath, 0640)  // Allow group read for mailserver user
-		
-		// Change ownership to mailserver user
-		cmd = exec.Command("chown", "mailserver:mailserver", certPath, keyPath)
-		if err := cmd.Run(); err != nil {
-			logger.Warnf("Failed to set SSL certificate ownership: %v", err)
+			// Set proper permissions and ownership
+			_ = os.Chmod(certPath, 0644)
+			_ = os.Chmod(keyPath, 0640) // Allow group read for mailserver user
+
+			// Change ownership to mailserver user
+			cmd = exec.Command("chown", "mailserver:mailserver", certPath, keyPath)
+			if err := cmd.Run(); err != nil {
+				logger.Warnf("Failed to set SSL certificate ownership: %v", err)
+			}
+		} else {
+			// Let's Encrypt certificate obtained successfully
+			logger.Info("✓ Let's Encrypt certificate obtained successfully")
+
+			// Set proper permissions on Let's Encrypt certificates
+			_ = os.Chmod(letsEncryptCertPath, 0644)
+			_ = os.Chmod(letsEncryptKeyPath, 0640)
+
+			// Change ownership to mailserver user
+			cmd := exec.Command("chown", "mailserver:mailserver", letsEncryptCertPath, letsEncryptKeyPath)
+			if err := cmd.Run(); err != nil {
+				logger.Warnf("Failed to set Let's Encrypt certificate ownership: %v", err)
+			}
+
+			// Configure Postfix to use the certificate
+			if err := sslManager.ConfigurePostfix(); err != nil {
+				logger.Warnf("Failed to configure Postfix with Let's Encrypt certificate: %v", err)
+			}
 		}
+	} else {
+		logger.Info("Let's Encrypt certificate already exists, skipping certificate generation")
 	}
 
 	// Install systemd service for webadmin
@@ -425,14 +460,14 @@ WantedBy=multi-user.target
 	// Create environment file for webadmin
 	// Configure WebAdmin for HTTPS on port 443
 	// Check if Let's Encrypt certificates exist, otherwise use self-signed
-	certPath = "/etc/mailserver/certs/cert.pem"
-	keyPath = "/etc/mailserver/certs/key.pem"
+	certPath := "/etc/mailserver/certs/cert.pem"
+	keyPath := "/etc/mailserver/certs/key.pem"
 	if _, err := os.Stat(certPath); os.IsNotExist(err) {
 		// Fall back to self-signed certificates
 		certPath = "/etc/mailserver/ssl/cert.pem"
 		keyPath = "/etc/mailserver/ssl/key.pem"
 	}
-	
+
 	webadminEnv := fmt.Sprintf(`# GoMail WebAdmin Environment Configuration
 WEBADMIN_PORT=443
 WEBADMIN_SSL_CERT=%s
@@ -447,8 +482,8 @@ MAIL_BEARER_TOKEN=%s
 		return fmt.Errorf("failed to write webadmin environment file: %w", err)
 	}
 
-	// Reload systemd  
-	cmd = exec.Command("systemctl", "daemon-reload")
+	// Reload systemd
+	cmd := exec.Command("systemctl", "daemon-reload")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to reload systemd: %w", err)
 	}
@@ -458,7 +493,6 @@ MAIL_BEARER_TOKEN=%s
 	protocol := "https"
 	logger.Infof("WebAdmin service installed. Access at %s://%s:%s/", protocol, cfg.MailHostname, webadminPort)
 	logger.Infof("Use bearer token for authentication: %s", cfg.BearerToken)
-	logger.Info("Note: Using self-signed certificate. To obtain a Let's Encrypt certificate, run: gomail ssl setup")
 
 	return nil
 }
