@@ -401,6 +401,7 @@ Requires=mailserver.service
 Type=simple
 User=mailserver
 Group=mailserver
+AmbientCapabilities=CAP_NET_BIND_SERVICE
 EnvironmentFile=/etc/sysconfig/gomail-webadmin
 ExecStart=/usr/local/bin/gomail-webadmin
 Restart=on-failure
@@ -422,12 +423,11 @@ WantedBy=multi-user.target
 	}
 
 	// Create environment file for webadmin
-	// Note: Using port 8080 and HTTP for initial setup, can be changed to 443/HTTPS later
+	// Configure WebAdmin for HTTPS on port 443
 	webadminEnv := fmt.Sprintf(`# GoMail WebAdmin Environment Configuration
-WEBADMIN_PORT=8080
-# For HTTPS, uncomment these and change port to 443:
-# WEBADMIN_SSL_CERT=/etc/mailserver/ssl/cert.pem
-# WEBADMIN_SSL_KEY=/etc/mailserver/ssl/key.pem
+WEBADMIN_PORT=443
+WEBADMIN_SSL_CERT=/etc/mailserver/ssl/cert.pem
+WEBADMIN_SSL_KEY=/etc/mailserver/ssl/key.pem
 WEBADMIN_STATIC_DIR=%s
 WEBADMIN_GOMAIL_API_URL=http://localhost:%d
 WEBADMIN_BEARER_TOKEN=%s
@@ -444,9 +444,12 @@ MAIL_BEARER_TOKEN=%s
 		return fmt.Errorf("failed to reload systemd: %w", err)
 	}
 
-	logger.Info("WebAdmin service installed. Access at http://your-server:8080/")
+	// Log based on actual configuration
+	webadminPort := "443"
+	protocol := "https"
+	logger.Infof("WebAdmin service installed. Access at %s://%s:%s/", protocol, cfg.MailHostname, webadminPort)
 	logger.Infof("Use bearer token for authentication: %s", cfg.BearerToken)
-	logger.Info("Note: Default configuration uses HTTP on port 8080. For production, configure HTTPS on port 443.")
+	logger.Info("Note: Using self-signed certificate. For production, replace with proper SSL certificate.")
 
 	return nil
 }
