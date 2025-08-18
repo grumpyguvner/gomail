@@ -441,7 +441,7 @@ WEBADMIN_STATIC_DIR=%s
 WEBADMIN_GOMAIL_API_URL=http://localhost:%d
 WEBADMIN_BEARER_TOKEN=%s
 MAIL_BEARER_TOKEN=%s
-`, webadminDir, cfg.Port, cfg.BearerToken, cfg.BearerToken)
+`, certPath, keyPath, webadminDir, cfg.Port, cfg.BearerToken, cfg.BearerToken)
 
 	if err := os.WriteFile("/etc/sysconfig/gomail-webadmin", []byte(webadminEnv), 0600); err != nil {
 		return fmt.Errorf("failed to write webadmin environment file: %w", err)
