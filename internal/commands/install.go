@@ -221,6 +221,18 @@ func createServiceUser() error {
 
 	// Create user
 	cmd = exec.Command("useradd", "-r", "-s", "/sbin/nologin", "-d", "/opt/mailserver", "mailserver")
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+	
+	// Create data directory
+	dataDir := "/opt/mailserver/data"
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		return fmt.Errorf("failed to create data directory: %w", err)
+	}
+	
+	// Set ownership
+	cmd = exec.Command("chown", "-R", "mailserver:mailserver", "/opt/mailserver")
 	return cmd.Run()
 }
 
