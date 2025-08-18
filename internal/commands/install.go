@@ -241,7 +241,7 @@ RestartSec=5
 # Security hardening
 NoNewPrivileges=true
 PrivateTmp=true
-ProtectSystem=strict
+ProtectSystem=full
 ProtectHome=true
 ReadWritePaths=/opt/mailserver/data
 
@@ -343,6 +343,12 @@ func installWebAdminService(cfg *config.Config) error {
 	if err := os.MkdirAll(sslDir, 0755); err != nil {
 		return fmt.Errorf("failed to create SSL directory: %w", err)
 	}
+	
+	// Ensure SSL directory is accessible by mailserver user
+	cmd := exec.Command("chown", "mailserver:mailserver", sslDir)
+	if err := cmd.Run(); err != nil {
+		logger.Warnf("Failed to set SSL directory ownership: %v", err)
+	}
 
 	// Generate self-signed certificate for initial setup
 	certPath := filepath.Join(sslDir, "cert.pem")
@@ -362,9 +368,15 @@ func installWebAdminService(cfg *config.Config) error {
 			logger.Info("✓ Self-signed SSL certificate generated")
 		}
 
-		// Set proper permissions
+		// Set proper permissions and ownership
 		_ = os.Chmod(certPath, 0644)
-		_ = os.Chmod(keyPath, 0600)
+		_ = os.Chmod(keyPath, 0640)  // Allow group read for mailserver user
+		
+		// Change ownership to mailserver user
+		cmd = exec.Command("chown", "mailserver:mailserver", certPath, keyPath)
+		if err := cmd.Run(); err != nil {
+			logger.Warnf("Failed to set SSL certificate ownership: %v", err)
+		}
 	}
 
 	// Install systemd service for webadmin
@@ -385,9 +397,9 @@ RestartSec=5
 # Security hardening
 NoNewPrivileges=true
 PrivateTmp=true
-ProtectSystem=strict
+ProtectSystem=full
 ProtectHome=true
-ReadWritePaths=/opt/gomail/webadmin
+ReadWritePaths=/opt/gomail/webadmin /etc/mailserver
 
 [Install]
 WantedBy=multi-user.target
