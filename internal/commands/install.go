@@ -254,7 +254,7 @@ WantedBy=multi-user.target
 	}
 
 	// Reload systemd
-	cmd = exec.Command("systemctl", "daemon-reload")
+	cmd := exec.Command("systemctl", "daemon-reload")
 	return cmd.Run()
 }
 
@@ -426,7 +426,7 @@ MAIL_BEARER_TOKEN=%s
 		return fmt.Errorf("failed to write webadmin environment file: %w", err)
 	}
 
-	// Reload systemd
+	// Reload systemd  
 	cmd = exec.Command("systemctl", "daemon-reload")
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("failed to reload systemd: %w", err)
