@@ -11,6 +11,22 @@ All notable changes to GoMail are documented here. Format based on [Keep a Chang
   - Backup procedures
   - Kubernetes support
 
+## [1.4.21] - 2025-08-19
+
+### Added
+- DNS-01 challenge support for Let's Encrypt certificates using Lego library
+- Automatic certificate acquisition via DigitalOcean DNS API
+- No longer requires port 80 to be open for certificate validation
+
+### Changed
+- Replaced golang.org/x/crypto/acme/autocert with github.com/go-acme/lego/v4
+- SSL manager now uses DNS-01 challenges instead of HTTP-01
+- Certificate acquisition is more reliable in restricted network environments
+
+### Fixed
+- Let's Encrypt certificate acquisition now works without port 80 access
+- Improved fallback to self-signed certificates when Let's Encrypt fails
+
 ## [1.4.0] - 2025-08-17
 
 ### Added - Sprint 3a: Web Administration UI

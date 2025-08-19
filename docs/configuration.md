@@ -104,8 +104,8 @@ cleanup_interval: 1h              # Old file cleanup frequency
 cleanup_age: 30d                  # Delete files older than
 
 # DigitalOcean Integration (optional)
-digitalocean_token: ""            # DO API token for DNS management
-digitalocean_domain_id: ""        # DO domain ID
+do_api_token: ""                  # DO API token for DNS management and SSL certificates
+digitalocean_domain_id: ""        # DO domain ID (auto-detected if not specified)
 
 # Advanced Settings
 debug_mode: false                 # Enable debug mode
@@ -302,9 +302,31 @@ rate_limit_per_minute: 10000  # No rate limiting
    tls_min_version: "1.2"  # or "1.3" for maximum security
    ```
 
-3. **Auto-renewal with Let's Encrypt**:
+3. **Automatic SSL with Let's Encrypt**:
+   
+   GoMail automatically obtains Let's Encrypt certificates during installation when DigitalOcean API token is configured:
+   
+   ```yaml
+   # Enable automatic SSL certificate acquisition
+   do_api_token: "your-digitalocean-api-token"
+   mail_hostname: "mail.example.com"
+   ```
+   
+   The system uses DNS-01 challenges via DigitalOcean DNS API:
+   - No port 80 required
+   - Works behind firewalls
+   - Automatic renewal
+   
+   Manual certificate management:
    ```bash
-   gomail ssl generate --domain example.com --email admin@example.com
+   # Obtain certificate
+   gomail ssl setup --email admin@example.com --agree-tos
+   
+   # Check status
+   gomail ssl status
+   
+   # Renew certificate
+   gomail ssl renew
    ```
 
 ## Performance Tuning

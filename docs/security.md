@@ -43,14 +43,67 @@ tls_cipher_suites:
 
 ### Let's Encrypt Integration
 
-Automatic certificate management:
+GoMail supports automatic SSL certificate acquisition and renewal using Let's Encrypt.
+
+#### Automatic Certificate Acquisition
+
+Certificates are automatically obtained during installation when a DigitalOcean API token is configured:
 
 ```bash
-# Generate certificate
-gomail ssl generate --domain example.com --email admin@example.com
+# Installation automatically attempts Let's Encrypt certificate
+# if DO_API_TOKEN is configured
+gomail install
+```
 
-# Auto-renewal (add to cron)
-0 2 * * * /usr/local/bin/gomail ssl renew
+#### DNS-01 Challenge Support
+
+GoMail uses DNS-01 challenges via DigitalOcean's DNS API for certificate validation:
+- **No port 80 required**: Works behind firewalls and NAT
+- **Wildcard support**: Can obtain wildcard certificates
+- **Automatic renewal**: Certificates renew automatically before expiration
+- **Secure validation**: Uses DNS TXT records for domain ownership proof
+
+#### Manual Certificate Management
+
+```bash
+# Obtain certificate manually
+gomail ssl setup --email admin@example.com --agree-tos
+
+# Check certificate status
+gomail ssl status
+
+# Renew certificate (if needed)
+gomail ssl renew
+
+# Force renewal
+gomail ssl renew --force
+```
+
+#### Automatic Renewal
+
+Add to crontab for automatic renewal:
+```bash
+# Check daily at 2 AM for certificate renewal
+0 2 * * * /usr/local/bin/gomail ssl renew && systemctl reload postfix
+```
+
+#### Fallback to Self-Signed
+
+If Let's Encrypt certificate acquisition fails (e.g., no DO API token), the system automatically:
+1. Generates a self-signed certificate
+2. Configures services to use the self-signed certificate
+3. Logs a warning about the fallback
+
+#### Requirements for Let's Encrypt
+
+- **Domain**: Valid domain name pointing to server
+- **DigitalOcean API Token**: Required for DNS-01 challenge
+- **Email**: Valid email for Let's Encrypt notifications
+
+Configure in environment or config file:
+```yaml
+do_api_token: "your-digitalocean-api-token"
+mail_hostname: "mail.example.com"
 ```
 
 ## Email Authentication
